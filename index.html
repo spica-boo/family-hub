@@ -192,9 +192,11 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   <div class="setup-card">
     <div class="setup-logo">☀️ Family <em>Hub</em></div>
     <div class="setup-sub">Shopping · To-Do · Calendar · Wishlist</div>
-    <div class="setup-label">Apps Script URL</div>
-    <input class="setup-input" id="url-input" type="url" placeholder="https://script.google.com/macros/s/…/exec">
-    <div class="setup-hint">Paste your Google Apps Script web app URL. Only needed once per device — saved automatically.</div>
+    <div class="setup-label">Supabase Project URL</div>
+    <input class="setup-input" id="sb-url-input" type="url" placeholder="https://xxxx.supabase.co">
+    <div class="setup-label">Supabase Anon Key</div>
+    <input class="setup-input" id="sb-key-input" type="text" placeholder="eyJhbGci…">
+    <div class="setup-hint">Only needed once per device — saved automatically.</div>
     <button class="setup-btn" onclick="connect()">Connect →</button>
   </div>
 </div>
@@ -374,9 +376,12 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 <div class="toast" id="toast"></div>
 
 <script>
-const STORAGE_KEY = 'familyhub_url';
+const STORAGE_KEY = 'familyhub_sb_url';
+const KEY_STORAGE = 'familyhub_sb_key';
 const POLL_MS = 6000;
-let SCRIPT_URL = localStorage.getItem(STORAGE_KEY) || '';
+let SB_URL = localStorage.getItem(STORAGE_KEY) || '';
+let SB_KEY = localStorage.getItem(KEY_STORAGE) || '';
+let ROW_ID = null;
 let state = { shopping: [], todo: [], events: {}, wishlist: [] };
 let saving = false, saveQueue = false;
 let editingTodoId = null, editingEvtDate = null, editingEvtId = null, editingShopId = null, editingWishId = null;
@@ -385,16 +390,20 @@ let dismissedAlerts = {};
 
 // ── SETUP ────────────────────────────────────────────────
 function connect() {
-  const val = document.getElementById('url-input').value.trim();
-  if (!val.includes('script.google.com')) { toast('Please enter a valid Apps Script URL'); return; }
-  localStorage.setItem(STORAGE_KEY, val);
-  SCRIPT_URL = val;
+  const url = document.getElementById('sb-url-input').value.trim().replace(/\/$/, '');
+  const key = document.getElementById('sb-key-input').value.trim();
+  if (!url.includes('supabase.co')) { toast('Please enter a valid Supabase URL'); return; }
+  if (!key.startsWith('eyJ')) { toast('Please enter a valid Supabase anon key'); return; }
+  localStorage.setItem(STORAGE_KEY, url);
+  localStorage.setItem(KEY_STORAGE, key);
+  SB_URL = url; SB_KEY = key;
   bootApp();
 }
 
 function resetUrl() {
-  if (!confirm('Change the Apps Script URL?')) return;
+  if (!confirm('Reset Supabase credentials?')) return;
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(KEY_STORAGE);
   location.reload();
 }
 
@@ -415,14 +424,24 @@ function setStatus(s) {
   lbl.textContent = s==='syncing'?'syncing…':s==='loading'?'loading…':s==='error'?'error':'synced';
 }
 
+// ── SUPABASE HELPERS ─────────────────────────────────────
+function sbHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'apikey': SB_KEY,
+    'Authorization': 'Bearer ' + SB_KEY
+  };
+}
+
 // ── DATA ─────────────────────────────────────────────────
 async function loadData() {
   setStatus('loading');
   try {
-    const res = await fetch(SCRIPT_URL + '?action=read', {redirect: 'follow'});
+    const res = await fetch(SB_URL + '/rest/v1/hub_data?select=id,data&limit=1', { headers: sbHeaders() });
     const json = await res.json();
-    if (json.ok) {
-      state = Object.assign({shopping:[],todo:[],events:{},wishlist:[]}, json.data);
+    if (json && json.length > 0) {
+      ROW_ID = json[0].id;
+      state = Object.assign({shopping:[],todo:[],events:{},wishlist:[]}, json[0].data);
       renderAll(); updateBadges(); updateAlerts();
     }
     setStatus('synced');
@@ -433,9 +452,12 @@ async function saveData() {
   if (saving) { saveQueue = true; return; }
   saving = true; setStatus('syncing');
   try {
-    const res = await fetch(SCRIPT_URL + '?action=write&payload=' + encodeURIComponent(JSON.stringify(state)), {redirect: 'follow'});
-    const json = await res.json();
-    if (!json.ok) throw new Error();
+    const res = await fetch(SB_URL + '/rest/v1/hub_data?id=eq.' + ROW_ID, {
+      method: 'PATCH',
+      headers: sbHeaders(),
+      body: JSON.stringify({ data: state })
+    });
+    if (!res.ok) throw new Error();
     setStatus('synced');
   } catch(e) { setStatus('error'); toast('Save failed'); }
   saving = false;
@@ -445,10 +467,10 @@ async function saveData() {
 async function pollData() {
   if (saving) return;
   try {
-    const res = await fetch(SCRIPT_URL + '?action=read', {redirect: 'follow'});
+    const res = await fetch(SB_URL + '/rest/v1/hub_data?select=id,data&limit=1', { headers: sbHeaders() });
     const json = await res.json();
-    if (json.ok) {
-      const incoming = Object.assign({shopping:[],todo:[],events:{},wishlist:[]}, json.data);
+    if (json && json.length > 0) {
+      const incoming = Object.assign({shopping:[],todo:[],events:{},wishlist:[]}, json[0].data);
       if (JSON.stringify(incoming) !== JSON.stringify(state)) {
         state = incoming;
         renderAll(); updateBadges(); updateAlerts();
@@ -1035,7 +1057,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-if (SCRIPT_URL) bootApp();
+if (SB_URL && SB_KEY) bootApp();
 </script>
 </body>
 </html>
