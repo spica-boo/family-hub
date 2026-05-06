@@ -1,5 +1,5 @@
 // Family Hub Service Worker
-const CACHE_NAME = 'familyhub-v11';
+const CACHE_NAME = 'familyhub-v12';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
