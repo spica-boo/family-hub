@@ -437,7 +437,7 @@ function sbHeaders() {
 async function loadData() {
   setStatus('loading');
   try {
-    const res = await fetch(SB_URL + '/rest/v1/hub_data?select=id,data&limit=1', { headers: sbHeaders() });
+    const res = await fetch(SB_URL + '/rest/v1/hub_data?select=id,data&limit=1&order=id.asc', { headers: sbHeaders() });
     const json = await res.json();
     if (json && json.length > 0) {
       ROW_ID = json[0].id;
@@ -454,7 +454,7 @@ async function saveData() {
   try {
     const res = await fetch(SB_URL + '/rest/v1/hub_data?id=eq.' + ROW_ID, {
       method: 'PATCH',
-      headers: sbHeaders(),
+      headers: { ...sbHeaders(), 'Prefer': 'return=minimal' },
       body: JSON.stringify({ data: state })
     });
     if (!res.ok) throw new Error();
@@ -467,7 +467,7 @@ async function saveData() {
 async function pollData() {
   if (saving) return;
   try {
-    const res = await fetch(SB_URL + '/rest/v1/hub_data?select=id,data&limit=1', { headers: sbHeaders() });
+    const res = await fetch(SB_URL + '/rest/v1/hub_data?select=id,data&limit=1&order=id.asc', { headers: sbHeaders() });
     const json = await res.json();
     if (json && json.length > 0) {
       const incoming = Object.assign({shopping:[],todo:[],events:{},wishlist:[]}, json[0].data);
