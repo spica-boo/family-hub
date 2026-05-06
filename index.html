@@ -209,6 +209,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         <div class="status-dot" id="sdot"></div>
         <span id="slbl">loading…</span>
       </div>
+      <button class="gear-btn" id="install-btn" onclick="installPWA()" title="Install App" style="display:none">📲</button>
       <button class="gear-btn" onclick="resetUrl()" title="Change URL">⚙</button>
     </div>
     <div class="tabs">
@@ -1054,6 +1055,33 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
       .then(reg => console.log('SW registered:', reg.scope))
       .catch(err => console.log('SW registration failed:', err));
+  });
+}
+
+// ── PWA INSTALL ──────────────────────────────────────────
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById('install-btn');
+  if (btn) btn.style.display = 'block';
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  const btn = document.getElementById('install-btn');
+  if (btn) btn.style.display = 'none';
+  toast('App installed! 🎉');
+});
+
+function installPWA() {
+  if (!deferredPrompt) { toast('Use browser menu to install'); return; }
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(choice => {
+    if (choice.outcome === 'accepted') toast('Installing…');
+    deferredPrompt = null;
+    document.getElementById('install-btn').style.display = 'none';
   });
 }
 
