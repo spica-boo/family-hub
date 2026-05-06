@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Family Hub">
+<meta name="theme-color" content="#1c1814">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<title>Family Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,500;0,700;1,300;1,500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f0e8; --surface: #fdfaf5; --surface2: #f0ebe0;
+  --ink: #1c1814; --ink2: #6b5f52; --ink3: #a89880; --border: #e2d8cc;
+  --green: #2a5c45; --amber: #a05a00; --rose: #8b2035; --blue: #1a3d6e;
+  --green-bg: #e8f2ec; --amber-bg: #fef3e2; --rose-bg: #fceef0;
+  --radius-sm: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; font-size: 16px; line-height: 1.5; }
+
+/* SETUP */
+#setup { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+.setup-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 20px; padding: 36px 28px; max-width: 440px; width: 100%; }
+.setup-logo { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 700; letter-spacing: -.03em; margin-bottom: 6px; }
+.setup-logo em { font-style: italic; font-weight: 300; color: var(--ink2); }
+.setup-sub { color: var(--ink2); font-size: 14px; margin-bottom: 28px; }
+.setup-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--ink2); margin-bottom: 8px; }
+.setup-input { width: 100%; padding: 13px 16px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 15px; background: var(--bg); color: var(--ink); outline: none; margin-bottom: 10px; }
+.setup-input:focus { border-color: var(--ink); }
+.setup-hint { font-size: 13px; color: var(--ink3); margin-bottom: 24px; line-height: 1.6; }
+.setup-btn { width: 100%; padding: 14px; background: var(--ink); color: var(--surface); border: none; border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 600; cursor: pointer; }
+
+/* APP */
+#app { display: none; flex-direction: column; min-height: 100vh; }
+#app.visible { display: flex; }
+header { background: var(--ink); padding: 16px 20px 0; position: sticky; top: 0; z-index: 100; flex-shrink: 0; }
+.header-row { display: flex; align-items: center; margin-bottom: 14px; gap: 10px; }
+.logo { font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 700; color: var(--surface); letter-spacing: -.03em; }
+.logo em { font-style: italic; font-weight: 300; color: #9a8878; }
+.status-pill { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #7a6a5a; padding: 5px 12px; background: rgba(255,255,255,.07); border-radius: 20px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; transition: background .3s; flex-shrink: 0; }
+.status-dot.loading { background: #fbbf24; animation: blink .7s ease infinite; }
+.status-dot.error { background: #f87171; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.gear-btn { background: none; border: none; color: #5a4a3a; font-size: 16px; cursor: pointer; padding: 4px 8px; }
+.tabs { display: flex; gap: 2px; }
+.tab { flex: 1; padding: 11px 8px; border: none; border-radius: 8px 8px 0 0; background: transparent; color: #7a6a5a; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .18s; display: flex; align-items: center; justify-content: center; gap: 5px; -webkit-tap-highlight-color: transparent; }
+.tab:hover { color: var(--surface); background: rgba(255,255,255,.08); }
+.tab.active { background: var(--bg); color: var(--ink); font-weight: 600; }
+.badge { background: rgba(255,255,255,.12); color: #9a8878; border-radius: 10px; padding: 2px 7px; font-size: 11px; font-weight: 600; }
+.tab.active .badge { background: var(--border); color: var(--ink2); }
+
+/* ALERT BANNER - expandable */
+.alert-banner { display: none; margin: 12px 16px 0; border-radius: var(--radius-sm); overflow: hidden; }
+.alert-banner.visible { display: block; }
+.alert-summary { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 13px; font-weight: 500; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+.alert-summary-today { background: var(--rose-bg); color: var(--rose); border-left: 3px solid var(--rose); }
+.alert-summary-amber { background: var(--amber-bg); color: var(--amber); border-left: 3px solid var(--amber); }
+.alert-count-badge { background: var(--rose); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin-left: auto; }
+.alert-count-badge.amber { background: var(--amber); }
+.alert-chevron { font-size: 11px; transition: transform .2s; }
+.alert-banner.expanded .alert-chevron { transform: rotate(180deg); }
+.alert-details { display: none; }
+.alert-banner.expanded .alert-details { display: block; }
+.alert-detail-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 14px 8px 17px; font-size: 13px; border-top: 1px solid rgba(0,0,0,.06); }
+.alert-detail-today { background: var(--rose-bg); color: var(--rose); }
+.alert-detail-tomorrow { background: var(--amber-bg); color: var(--amber); }
+.alert-detail-label { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .6; margin-bottom: 1px; }
+
+/* WHERE TAG on shopping items */
+.item-sub { font-size: 12px; color: var(--ink3); margin-top: 2px; }
+
+/* WISHLIST */
+.wish-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); animation: up .18s ease; }
+.wish-item.done { opacity: .4; }
+.wish-item.done .wish-text { text-decoration: line-through; }
+.wish-emoji { font-size: 22px; flex-shrink: 0; width: 36px; text-align: center; }
+.wish-body { flex: 1; min-width: 0; }
+.wish-text { font-size: 15px; word-break: break-word; }
+.wish-meta { font-size: 12px; color: var(--ink3); margin-top: 2px; }
+.wish-tag { font-size: 11px; padding: 2px 9px; border-radius: 10px; font-weight: 600; flex-shrink: 0; }
+.wish-tag-dream { background: #f0e6ff; color: #6b21a8; }
+.wish-tag-goal { background: #e0f2fe; color: #0c4a6e; }
+.wish-tag-soon { background: var(--green-bg); color: var(--green); }
+
+/* EVT DURATION */
+.evt-duration { font-size: 12px; color: var(--ink3); margin-top: 2px; }
+
+/* MAIN */
+main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.scroll-inner { max-width: 640px; margin: 0 auto; padding: 20px 16px 100px; }
+.panel { display: none; }
+.panel.active { display: block; animation: up .18s ease; }
+@keyframes up { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+.page-title { font-family: 'Fraunces', serif; font-size: 1.8rem; font-weight: 700; letter-spacing: -.03em; margin-bottom: 18px; }
+
+/* INPUTS */
+.add-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.field { padding: 13px 16px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 16px; background: var(--surface); color: var(--ink); outline: none; transition: border-color .18s; -webkit-appearance: none; }
+.field:focus { border-color: var(--ink); }
+.field::placeholder { color: var(--ink3); }
+.field.main { flex: 1; min-width: 140px; }
+.field.narrow { width: 90px; }
+.field.date { width: 150px; }
+.add-btn { padding: 13px 20px; background: var(--ink); color: var(--surface); border: none; border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 600; cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+.add-btn:active { opacity: .7; }
+
+/* ITEMS */
+.list { display: flex; flex-direction: column; gap: 6px; }
+.item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); transition: opacity .2s; animation: up .18s ease; }
+.item.done { opacity: .4; }
+.item.done .item-text { text-decoration: line-through; }
+.check { width: 26px; height: 26px; border-radius: 7px; border: 1.5px solid var(--border); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; background: var(--surface); -webkit-tap-highlight-color: transparent; }
+.item.done .check { background: var(--ink); border-color: var(--ink); }
+.check svg { display: none; }
+.item.done .check svg { display: block; }
+.item-body { flex: 1; min-width: 0; }
+.item-text { font-size: 15px; word-break: break-word; }
+.item-date { font-size: 12px; color: var(--ink3); margin-top: 2px; }
+.item-date.due-today { color: var(--rose); font-weight: 600; }
+.item-date.due-tomorrow { color: var(--amber); font-weight: 600; }
+.tag { font-size: 12px; padding: 3px 10px; border-radius: 10px; flex-shrink: 0; font-weight: 500; }
+.tag-person { background: var(--green-bg); color: var(--green); }
+.prio-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.prio-high { background: var(--rose); }
+.prio-med { background: var(--amber); }
+.prio-low { background: var(--green); }
+.item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.icon-btn { background: none; border: none; color: var(--border); cursor: pointer; padding: 6px; border-radius: 4px; display: flex; align-items: center; -webkit-tap-highlight-color: transparent; transition: color .15s; }
+.icon-btn:active { color: var(--ink2); }
+.icon-btn.del:active { color: var(--rose); }
+
+/* EDIT MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(28,24,20,.5); z-index: 200; align-items: center; justify-content: center; padding: 24px; }
+.modal-overlay.visible { display: flex; }
+.modal { background: var(--surface); border-radius: 16px; padding: 24px; width: 100%; max-width: 440px; box-shadow: 0 8px 32px rgba(28,24,20,.2); }
+.modal-title { font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 700; margin-bottom: 16px; }
+.modal-field { width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 15px; background: var(--bg); color: var(--ink); outline: none; margin-bottom: 10px; -webkit-appearance: none; }
+.modal-field:focus { border-color: var(--ink); }
+.modal-row { display: flex; gap: 8px; }
+.modal-btn { flex: 1; padding: 12px; border: none; border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; }
+.modal-btn.primary { background: var(--ink); color: var(--surface); }
+.modal-btn.secondary { background: var(--surface2); color: var(--ink2); }
+
+.empty { text-align: center; padding: 48px 20px; color: var(--ink3); }
+.empty .icon { font-size: 2.5rem; margin-bottom: 12px; }
+.empty p { font-family: 'Fraunces', serif; font-style: italic; font-size: 1.1rem; }
+.action-bar { display: flex; justify-content: flex-end; margin-top: 12px; }
+.ghost-btn { background: none; border: none; font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--ink3); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; padding: 6px 0; }
+
+/* PILLS */
+.pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.pill { padding: 7px 14px; border-radius: 20px; border: 1.5px solid var(--border); background: transparent; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--ink2); display: flex; align-items: center; gap: 5px; -webkit-tap-highlight-color: transparent; }
+.pill.on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+
+/* CALENDAR */
+.cal-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.cal-nav-btn { width: 38px; height: 38px; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--ink); -webkit-tap-highlight-color: transparent; }
+.cal-month-label { font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 700; letter-spacing: -.02em; flex: 1; }
+.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-bottom: 18px; }
+.cal-dow { text-align: center; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--ink3); padding: 6px 0; }
+.cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); font-size: 14px; cursor: pointer; border: 1.5px solid transparent; transition: all .13s; position: relative; min-height: 40px; -webkit-tap-highlight-color: transparent; flex-direction: column; gap: 2px; }
+.cal-day.other { color: var(--ink3); }
+.cal-day.today { background: var(--ink); color: var(--surface); font-weight: 600; }
+.cal-day.selected { border-color: var(--ink); background: var(--surface); }
+.cal-day.today.selected { background: var(--ink); }
+.cal-day .evt-dots { display: flex; gap: 2px; justify-content: center; }
+.cal-day .evt-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); flex-shrink: 0; }
+.cal-day.today .evt-dot { background: var(--surface); }
+.cal-day.has-many .evt-dot { width: 8px; height: 8px; }
+.sel-date-label { font-family: 'Fraunces', serif; font-size: 1.15rem; font-weight: 600; letter-spacing: -.02em; margin-bottom: 14px; }
+.evt-item { display: flex; align-items: center; gap: 12px; padding: 13px 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; animation: up .18s ease; }
+.evt-time { font-size: 13px; font-weight: 600; color: var(--blue); min-width: 44px; flex-shrink: 0; }
+.evt-body { flex: 1; min-width: 0; }
+.evt-text { font-size: 15px; }
+.evt-who { font-size: 12px; color: var(--ink3); margin-top: 2px; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--ink); color: var(--surface); padding: 12px 24px; border-radius: 20px; font-size: 14px; font-weight: 500; z-index: 999; transition: transform .3s cubic-bezier(.34,1.56,.64,1); white-space: nowrap; pointer-events: none; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <div class="setup-card">
+    <div class="setup-logo">☀️ Family <em>Hub</em></div>
+    <div class="setup-sub">Shopping · To-Do · Calendar · Wishlist</div>
+    <div class="setup-label">Apps Script URL</div>
+    <input class="setup-input" id="url-input" type="url" placeholder="https://script.google.com/macros/s/…/exec">
+    <div class="setup-hint">Paste your Google Apps Script web app URL. Only needed once per device — saved automatically.</div>
+    <button class="setup-btn" onclick="connect()">Connect →</button>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="header-row">
+      <div class="logo">☀️ Family <em>Hub</em></div>
+      <div class="status-pill">
+        <div class="status-dot" id="sdot"></div>
+        <span id="slbl">loading…</span>
+      </div>
+      <button class="gear-btn" onclick="resetUrl()" title="Change URL">⚙</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" id="tab-shop" onclick="switchTab('shop')">🛒 <span class="badge" id="b-shop">0</span></button>
+      <button class="tab" id="tab-wish" onclick="switchTab('wish')">✨ <span class="badge" id="b-wish">0</span></button>
+      <button class="tab" id="tab-todo" onclick="switchTab('todo')">✅ <span class="badge" id="b-todo">0</span></button>
+      <button class="tab" id="tab-cal" onclick="switchTab('cal')">📅</button>
+    </div>
+  </header>
+
+  <!-- ALERT BANNER (calendar events only, expandable) -->
+  <div class="alert-banner" id="alert-banner"></div>
+
+  <main>
+    <div class="scroll-inner">
+
+      <!-- SHOPPING -->
+      <div class="panel active" id="panel-shop">
+        <div class="page-title">Shopping List</div>
+        <div class="add-row">
+          <input class="field main" id="sh-text" placeholder="Add item…" onkeydown="if(event.key==='Enter')addShop()">
+          <input class="field narrow" id="sh-who" placeholder="Who?">
+          <button class="add-btn" onclick="addShop()">Add</button>
+        </div>
+        <!-- Where filter pills - dynamic -->
+        <div class="pills" id="shop-where-pills">
+          <button class="pill on" data-w="all" onclick="filterWhere(this)">All</button>
+        </div>
+        <div class="list" id="sh-list"></div>
+        <div class="action-bar"><button class="ghost-btn" onclick="clearDone('shopping')">Clear ticked</button></div>
+      </div>
+
+      <!-- TODO -->
+      <div class="panel" id="panel-todo">
+        <div class="page-title">To-Do List</div>
+        <div class="add-row">
+          <input class="field main" id="td-text" placeholder="Add task…" onkeydown="if(event.key==='Enter')addTodo()">
+          <input class="field narrow" id="td-who" placeholder="Who?">
+        </div>
+        <div class="add-row">
+          <input class="field date" id="td-date" type="date" title="Optional due date — auto-adds to calendar">
+          <button class="add-btn" style="flex:1" onclick="addTodo()">Add Task</button>
+        </div>
+        <div class="pills">
+          <button class="pill on" data-p="all" onclick="filterPrio(this)">All</button>
+          <button class="pill" data-p="high" onclick="filterPrio(this)"><span class="prio-dot prio-high"></span> High</button>
+          <button class="pill" data-p="med" onclick="filterPrio(this)"><span class="prio-dot prio-med"></span> Medium</button>
+          <button class="pill" data-p="low" onclick="filterPrio(this)"><span class="prio-dot prio-low"></span> Low</button>
+        </div>
+        <div class="list" id="td-list"></div>
+        <div class="action-bar"><button class="ghost-btn" onclick="clearDone('todo')">Clear completed</button></div>
+      </div>
+
+      <!-- CALENDAR -->
+      <div class="panel" id="panel-cal">
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+          <div class="cal-month-label" id="cal-label"></div>
+          <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div class="sel-date-label" id="sel-label">Select a date to add events</div>
+        <div class="add-row">
+          <input class="field" id="ev-time" type="time" style="width:110px" title="Start time">
+          <input class="field" id="ev-end-time" type="time" style="width:110px" title="End time (optional)">
+          <input class="field main" id="ev-text" placeholder="Event…" onkeydown="if(event.key==='Enter')addEvent()">
+          <input class="field narrow" id="ev-who" placeholder="Who?">
+          <button class="add-btn" onclick="addEvent()">Add</button>
+        </div>
+        <div id="ev-list"></div>
+      </div>
+
+      <!-- WISHLIST / BUCKET LIST -->
+      <div class="panel" id="panel-wish">
+        <div class="page-title">Wish List ✨</div>
+        <div class="add-row">
+          <input class="field main" id="wi-text" placeholder="Add a wish or dream…" onkeydown="if(event.key==='Enter')addWish()">
+          <input class="field narrow" id="wi-who" placeholder="Who?">
+        </div>
+        <div class="add-row">
+          <select class="field" id="wi-type" style="width:130px">
+            <option value="dream">🌟 Dream</option>
+            <option value="goal">🎯 Goal</option>
+            <option value="soon">🌿 Soon</option>
+          </select>
+          <input class="field main" id="wi-note" placeholder="Notes (optional)…">
+          <button class="add-btn" onclick="addWish()">Add</button>
+        </div>
+        <div class="pills">
+          <button class="pill on" data-w="all" onclick="filterWish(this)">All</button>
+          <button class="pill" data-w="dream" onclick="filterWish(this)">🌟 Dream</button>
+          <button class="pill" data-w="goal" onclick="filterWish(this)">🎯 Goal</button>
+          <button class="pill" data-w="soon" onclick="filterWish(this)">🌿 Soon</button>
+        </div>
+        <div class="list" id="wi-list"></div>
+        <div class="action-bar"><button class="ghost-btn" onclick="clearDoneWish()">Clear ticked</button></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- EDIT TODO MODAL -->
+<div class="modal-overlay" id="edit-todo-modal">
+  <div class="modal">
+    <div class="modal-title">Edit Task</div>
+    <input class="modal-field" id="edit-td-text" placeholder="Task…">
+    <input class="modal-field narrow" id="edit-td-who" placeholder="Who?">
+    <input class="modal-field" id="edit-td-date" type="date">
+    <div class="modal-row">
+      <button class="modal-btn secondary" onclick="closeModal('edit-todo-modal')">Cancel</button>
+      <button class="modal-btn primary" onclick="saveTodoEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT EVENT MODAL -->
+<div class="modal-overlay" id="edit-evt-modal">
+  <div class="modal">
+    <div class="modal-title">Edit Event</div>
+    <input class="modal-field" id="edit-ev-time" type="time">
+    <input class="modal-field" id="edit-ev-end-time" type="time" placeholder="End time (optional)">
+    <input class="modal-field" id="edit-ev-text" placeholder="Event description…">
+    <input class="modal-field" id="edit-ev-who" placeholder="Who?">
+    <div class="modal-row">
+      <button class="modal-btn secondary" onclick="closeModal('edit-evt-modal')">Cancel</button>
+      <button class="modal-btn primary" onclick="saveEvtEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT SHOPPING MODAL -->
+<div class="modal-overlay" id="edit-shop-modal">
+  <div class="modal">
+    <div class="modal-title">Edit Item</div>
+    <input class="modal-field" id="edit-sh-text" placeholder="Item…">
+    <input class="modal-field" id="edit-sh-who" placeholder="Who?">
+    <input class="modal-field" id="edit-sh-where" placeholder="Where? (e.g. Pak'nSave, Chemist…)">
+    <div class="modal-row">
+      <button class="modal-btn secondary" onclick="closeModal('edit-shop-modal')">Cancel</button>
+      <button class="modal-btn primary" onclick="saveShopEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT WISH MODAL -->
+<div class="modal-overlay" id="edit-wish-modal">
+  <div class="modal">
+    <div class="modal-title">Edit Wish</div>
+    <input class="modal-field" id="edit-wi-text" placeholder="Wish…">
+    <input class="modal-field" id="edit-wi-who" placeholder="Who?">
+    <input class="modal-field" id="edit-wi-note" placeholder="Notes…">
+    <select class="modal-field" id="edit-wi-type">
+      <option value="dream">🌟 Dream</option>
+      <option value="goal">🎯 Goal</option>
+      <option value="soon">🌿 Soon</option>
+    </select>
+    <div class="modal-row">
+      <button class="modal-btn secondary" onclick="closeModal('edit-wish-modal')">Cancel</button>
+      <button class="modal-btn primary" onclick="saveWishEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'familyhub_url';
+const POLL_MS = 6000;
+let SCRIPT_URL = localStorage.getItem(STORAGE_KEY) || '';
+let state = { shopping: [], todo: [], events: {}, wishlist: [] };
+let saving = false, saveQueue = false;
+let editingTodoId = null, editingEvtDate = null, editingEvtId = null, editingShopId = null, editingWishId = null;
+let alertExpanded = false;
+let dismissedAlerts = {};
+
+// ── SETUP ────────────────────────────────────────────────
+function connect() {
+  const val = document.getElementById('url-input').value.trim();
+  if (!val.includes('script.google.com')) { toast('Please enter a valid Apps Script URL'); return; }
+  localStorage.setItem(STORAGE_KEY, val);
+  SCRIPT_URL = val;
+  bootApp();
+}
+
+function resetUrl() {
+  if (!confirm('Change the Apps Script URL?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+function bootApp() {
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  loadDismissed();
+  loadData();
+  setInterval(pollData, POLL_MS);
+  setInterval(checkSmartDismiss, 60000);
+}
+
+// ── STATUS ───────────────────────────────────────────────
+function setStatus(s) {
+  const dot = document.getElementById('sdot');
+  const lbl = document.getElementById('slbl');
+  dot.className = 'status-dot' + (s==='loading'||s==='syncing'?' loading':s==='error'?' error':'');
+  lbl.textContent = s==='syncing'?'syncing…':s==='loading'?'loading…':s==='error'?'error':'synced';
+}
+
+// ── DATA ─────────────────────────────────────────────────
+async function loadData() {
+  setStatus('loading');
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=read', {redirect: 'follow'});
+    const json = await res.json();
+    if (json.ok) {
+      state = Object.assign({shopping:[],todo:[],events:{},wishlist:[]}, json.data);
+      renderAll(); updateBadges(); updateAlerts();
+    }
+    setStatus('synced');
+  } catch(e) { setStatus('error'); toast('Could not load data'); }
+}
+
+async function saveData() {
+  if (saving) { saveQueue = true; return; }
+  saving = true; setStatus('syncing');
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=write&payload=' + encodeURIComponent(JSON.stringify(state)), {redirect: 'follow'});
+    const json = await res.json();
+    if (!json.ok) throw new Error();
+    setStatus('synced');
+  } catch(e) { setStatus('error'); toast('Save failed'); }
+  saving = false;
+  if (saveQueue) { saveQueue = false; saveData(); }
+}
+
+async function pollData() {
+  if (saving) return;
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=read', {redirect: 'follow'});
+    const json = await res.json();
+    if (json.ok) {
+      const incoming = Object.assign({shopping:[],todo:[],events:{},wishlist:[]}, json.data);
+      if (JSON.stringify(incoming) !== JSON.stringify(state)) {
+        state = incoming;
+        renderAll(); updateBadges(); updateAlerts();
+      }
+    }
+  } catch(e) {}
+}
+
+// ── DISMISS PERSISTENCE ──────────────────────────────────
+function loadDismissed() {
+  try { dismissedAlerts = JSON.parse(localStorage.getItem('fh_dismissed') || '{}'); } catch(e) { dismissedAlerts = {}; }
+  const cutoff = Date.now() - 2 * 86400000;
+  for (const k in dismissedAlerts) { if (dismissedAlerts[k] < cutoff) delete dismissedAlerts[k]; }
+  saveDismissed();
+}
+
+function saveDismissed() {
+  localStorage.setItem('fh_dismissed', JSON.stringify(dismissedAlerts));
+}
+
+function dismissKey(ds, evtId) { return ds + '_' + evtId; }
+
+// Auto-dismiss events whose end time has passed
+function checkSmartDismiss() {
+  const now = new Date();
+  const today = todayStr();
+  let changed = false;
+  const evts = state.events[today] || [];
+  for (const e of evts) {
+    const key = dismissKey(today, e.id);
+    if (dismissedAlerts[key]) continue;
+    if (e.endTime) {
+      const [h,m] = e.endTime.split(':').map(Number);
+      const endDt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+      if (now > endDt) { dismissedAlerts[key] = Date.now(); changed = true; }
+    }
+  }
+  if (changed) { saveDismissed(); updateAlerts(); }
+}
+
+function dismissAlert(ds, id, ev) {
+  if (ev) ev.stopPropagation();
+  dismissedAlerts[dismissKey(ds, id)] = Date.now();
+  saveDismissed();
+  updateAlerts();
+}
+
+// ── ALERTS (Calendar events only, expandable) ─────────────
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function tomorrowStr() {
+  const d = new Date(); d.setDate(d.getDate()+1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function toggleAlertExpand(ev) {
+  if (ev) ev.stopPropagation();
+  alertExpanded = !alertExpanded;
+  document.getElementById('alert-banner').classList.toggle('expanded', alertExpanded);
+}
+
+function updateAlerts() {
+  const today = todayStr(), tomorrow = tomorrowStr();
+  const banner = document.getElementById('alert-banner');
+
+  // Calendar events only (not todo)
+  const todayEvts = (state.events[today] || []).filter(e => !dismissedAlerts[dismissKey(today, e.id)]);
+  const tomorrowEvts = (state.events[tomorrow] || []).filter(e => !dismissedAlerts[dismissKey(tomorrow, e.id)]);
+  const totalCount = todayEvts.length + tomorrowEvts.length;
+
+  if (!totalCount) {
+    banner.innerHTML = ''; banner.classList.remove('visible','expanded');
+    alertExpanded = false; return;
+  }
+
+  const parts = [];
+  if (todayEvts.length) parts.push(todayEvts.length + ' today');
+  if (tomorrowEvts.length) parts.push(tomorrowEvts.length + ' tomorrow');
+  const summaryClass = todayEvts.length ? 'alert-summary-today' : 'alert-summary-amber';
+  const badgeClass = todayEvts.length ? '' : 'amber';
+
+  let html = `<div class="alert-summary ${summaryClass}" onclick="toggleAlertExpand(event)">
+    <span>📅</span>
+    <span style="flex:1">Upcoming — ${parts.join(', ')}</span>
+    <span class="alert-count-badge ${badgeClass}">${totalCount}</span>
+    <span class="alert-chevron">▼</span>
+  </div><div class="alert-details">`;
+
+  for (const e of todayEvts) {
+    const timeStr = e.time ? formatTime(e.time) : '';
+    const endStr = e.endTime ? ' – ' + formatTime(e.endTime) : '';
+    const dur = (e.time && e.endTime) ? ' · ' + calcDuration(e.time, e.endTime) : '';
+    html += `<div class="alert-detail-item alert-detail-today">
+      <span>🔴</span>
+      <div style="flex:1">
+        <div class="alert-detail-label">Today${timeStr ? ' · ' + timeStr + endStr + dur : ''}</div>
+        <div>${esc(e.text)}${e.who ? ' <span style="opacity:.6">· ' + esc(e.who) + '</span>' : ''}</div>
+      </div>
+      <button class="icon-btn" style="font-size:11px" onclick="dismissAlert('${today}',${e.id},event)">✕</button>
+    </div>`;
+  }
+  for (const e of tomorrowEvts) {
+    const timeStr = e.time ? formatTime(e.time) : '';
+    const endStr = e.endTime ? ' – ' + formatTime(e.endTime) : '';
+    const dur = (e.time && e.endTime) ? ' · ' + calcDuration(e.time, e.endTime) : '';
+    html += `<div class="alert-detail-item alert-detail-tomorrow">
+      <span>🟠</span>
+      <div style="flex:1">
+        <div class="alert-detail-label">Tomorrow${timeStr ? ' · ' + timeStr + endStr + dur : ''}</div>
+        <div>${esc(e.text)}${e.who ? ' <span style="opacity:.6">· ' + esc(e.who) + '</span>' : ''}</div>
+      </div>
+      <button class="icon-btn" style="font-size:11px" onclick="dismissAlert('${tomorrow}',${e.id},event)">✕</button>
+    </div>`;
+  }
+  html += '</div>';
+  banner.innerHTML = html;
+  banner.classList.add('visible');
+  banner.classList.toggle('expanded', alertExpanded);
+}
+
+function calcDuration(start, end) {
+  const [sh,sm] = start.split(':').map(Number);
+  const [eh,em] = end.split(':').map(Number);
+  const mins = (eh*60+em) - (sh*60+sm);
+  if (mins <= 0) return '';
+  if (mins < 60) return mins + 'm';
+  const h = Math.floor(mins/60), m = mins%60;
+  return m ? h + 'h ' + m + 'm' : h + 'h';
+}
+
+function formatTime(t) {
+  if (!t) return '';
+  const [h,m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'pm' : 'am';
+  return (h % 12 || 12) + ':' + String(m).padStart(2,'0') + ampm;
+}
+
+// ── TABS ─────────────────────────────────────────────────
+function switchTab(n) {
+  ['shop','wish','todo','cal'].forEach(t => {
+    document.getElementById('panel-'+t).classList.toggle('active', t===n);
+    document.getElementById('tab-'+t).classList.toggle('active', t===n);
+  });
+  if (n==='cal') renderCalendar();
+}
+
+function updateBadges() {
+  document.getElementById('b-shop').textContent = state.shopping.filter(i=>!i.done).length;
+  document.getElementById('b-todo').textContent = state.todo.filter(i=>!i.done).length;
+  document.getElementById('b-wish').textContent = (state.wishlist||[]).filter(i=>!i.done).length;
+}
+
+// ── SHOPPING ─────────────────────────────────────────────
+let activeWhere = 'all';
+
+function addShop() {
+  const t = document.getElementById('sh-text').value.trim();
+  const who = document.getElementById('sh-who').value.trim();
+  if (!t) return;
+  state.shopping.unshift({id:Date.now(), text:t, done:false, who, where:''});
+  document.getElementById('sh-text').value = '';
+  saveData(); renderShopping(); updateBadges();
+}
+
+function toggleShop(id) {
+  const i = state.shopping.find(x=>x.id===id);
+  if (i) i.done = !i.done;
+  saveData(); renderShopping(); updateBadges();
+}
+
+function delShop(id) {
+  state.shopping = state.shopping.filter(x=>x.id!==id);
+  saveData(); renderShopping(); updateBadges();
+}
+
+function openEditShop(id) {
+  const i = state.shopping.find(x=>x.id===id);
+  if (!i) return;
+  editingShopId = id;
+  document.getElementById('edit-sh-text').value = i.text;
+  document.getElementById('edit-sh-who').value = i.who || '';
+  document.getElementById('edit-sh-where').value = i.where || '';
+  document.getElementById('edit-shop-modal').classList.add('visible');
+}
+
+function saveShopEdit() {
+  const i = state.shopping.find(x=>x.id===editingShopId);
+  if (!i) return;
+  const newText = document.getElementById('edit-sh-text').value.trim();
+  if (!newText) return;
+  i.text = newText;
+  i.who = document.getElementById('edit-sh-who').value.trim();
+  i.where = document.getElementById('edit-sh-where').value.trim();
+  closeModal('edit-shop-modal');
+  saveData(); renderShopping();
+}
+
+function filterWhere(btn) {
+  activeWhere = btn.dataset.w;
+  document.querySelectorAll('#shop-where-pills .pill').forEach(b => b.classList.toggle('on', b.dataset.w===activeWhere));
+  renderShopping();
+}
+
+function renderWherePills() {
+  const locations = [...new Set(state.shopping.filter(i=>i.where).map(i=>i.where))];
+  const pillsEl = document.getElementById('shop-where-pills');
+  let html = `<button class="pill ${activeWhere==='all'?'on':''}" data-w="all" onclick="filterWhere(this)">All</button>`;
+  for (const loc of locations) {
+    html += `<button class="pill ${activeWhere===loc?'on':''}" data-w="${esc(loc)}" onclick="filterWhere(this)">${esc(loc)}</button>`;
+  }
+  pillsEl.innerHTML = html;
+}
+
+function renderShopping() {
+  const el = document.getElementById('sh-list');
+  let items = state.shopping;
+  if (activeWhere !== 'all') items = items.filter(i => i.where === activeWhere);
+  if (!items.length) { el.innerHTML = empty('🛒', activeWhere==='all'?'Nothing on the list yet':'No items here'); renderWherePills(); return; }
+  items = [...items].sort((a,b) => a.done-b.done);
+  el.innerHTML = items.map(i => `
+    <div class="item${i.done?' done':''}">
+      <div class="check" onclick="toggleShop(${i.id})">${chk()}</div>
+      <div class="item-body">
+        <div class="item-text">${esc(i.text)}</div>
+        ${i.where ? `<div class="item-sub">📍 ${esc(i.where)}</div>` : ''}
+      </div>
+      ${i.who ? `<span class="tag tag-person">${esc(i.who)}</span>` : ''}
+      <div class="item-actions">
+        <button class="icon-btn" onclick="openEditShop(${i.id})">${editIcon()}</button>
+        <button class="icon-btn del" onclick="delShop(${i.id})">${xi()}</button>
+      </div>
+    </div>`).join('');
+  renderWherePills();
+}
+
+function clearDone(type) {
+  state[type] = state[type].filter(i=>!i.done);
+  saveData();
+  if (type==='shopping') { renderShopping(); } else renderTodo();
+  updateBadges();
+}
+
+// ── TODO ─────────────────────────────────────────────────
+let activePrio = 'all';
+const PRIOS = ['high','med','low'];
+
+function filterPrio(btn) {
+  activePrio = btn.dataset.p;
+  document.querySelectorAll('#panel-todo .pills .pill').forEach(b => b.classList.toggle('on', b.dataset.p===activePrio));
+  renderTodo();
+}
+
+function addTodo() {
+  const t = document.getElementById('td-text').value.trim();
+  const who = document.getElementById('td-who').value.trim();
+  const dueDate = document.getElementById('td-date').value;
+  if (!t) return;
+  const prio = activePrio==='all' ? 'med' : activePrio;
+  const item = {id:Date.now(), text:t, done:false, prio, who, dueDate};
+  state.todo.unshift(item);
+
+  if (dueDate) {
+    if (!state.events[dueDate]) state.events[dueDate] = [];
+    state.events[dueDate].push({id:Date.now()+1, text:t, time:'', endTime:'', who, fromTodo:true});
+    state.events[dueDate].sort((a,b) => (a.time||'99:99') < (b.time||'99:99') ? -1 : 1);
+    toast('Added to calendar on ' + formatDate(dueDate));
+  }
+
+  document.getElementById('td-text').value = '';
+  document.getElementById('td-date').value = '';
+  saveData(); renderTodo(); updateBadges(); updateAlerts();
+}
+
+function toggleTodo(id) { const i=state.todo.find(x=>x.id===id); if(i) i.done=!i.done; saveData(); renderTodo(); updateBadges(); updateAlerts(); }
+function delTodo(id) { state.todo=state.todo.filter(x=>x.id!==id); saveData(); renderTodo(); updateBadges(); updateAlerts(); }
+function cyclePrio(id) { const i=state.todo.find(x=>x.id===id); if(!i) return; i.prio=PRIOS[(PRIOS.indexOf(i.prio)+1)%3]; saveData(); renderTodo(); }
+
+function openEditTodo(id) {
+  const i = state.todo.find(x=>x.id===id);
+  if (!i) return;
+  editingTodoId = id;
+  document.getElementById('edit-td-text').value = i.text;
+  document.getElementById('edit-td-who').value = i.who || '';
+  document.getElementById('edit-td-date').value = i.dueDate || '';
+  document.getElementById('edit-todo-modal').classList.add('visible');
+}
+
+function saveTodoEdit() {
+  const i = state.todo.find(x=>x.id===editingTodoId);
+  if (!i) return;
+  const newText = document.getElementById('edit-td-text').value.trim();
+  const newWho = document.getElementById('edit-td-who').value.trim();
+  const newDate = document.getElementById('edit-td-date').value;
+  if (!newText) return;
+
+  // Resync calendar: remove old fromTodo entry
+  if (i.dueDate && state.events[i.dueDate]) {
+    state.events[i.dueDate] = state.events[i.dueDate].filter(e => !(e.fromTodo && e.text === i.text));
+    if (!state.events[i.dueDate].length) delete state.events[i.dueDate];
+  }
+  // Add new calendar entry
+  if (newDate) {
+    if (!state.events[newDate]) state.events[newDate] = [];
+    const already = state.events[newDate].find(e => e.fromTodo && e.text === newText);
+    if (!already) {
+      state.events[newDate].push({id:Date.now(), text:newText, time:'', endTime:'', who:newWho, fromTodo:true});
+      state.events[newDate].sort((a,b) => (a.time||'99:99') < (b.time||'99:99') ? -1 : 1);
+    }
+  }
+
+  i.text = newText; i.who = newWho; i.dueDate = newDate;
+  closeModal('edit-todo-modal');
+  saveData(); renderTodo(); updateAlerts();
+  if (document.getElementById('panel-cal').classList.contains('active')) renderCalendar();
+}
+
+function renderTodo() {
+  const today = todayStr(), tomorrow = tomorrowStr();
+  const el = document.getElementById('td-list');
+  let items = activePrio==='all' ? state.todo : state.todo.filter(i=>i.prio===activePrio);
+  if (!items.length) { el.innerHTML = empty('✅','All clear!'); return; }
+  const po = {high:0, med:1, low:2};
+  items = [...items].sort((a,b) => a.done-b.done || (po[a.prio]-po[b.prio]));
+  el.innerHTML = items.map(i => {
+    let dateLabel = '', dateClass = '';
+    if (i.dueDate) {
+      if (i.dueDate === today) { dateLabel = 'Due today'; dateClass = 'due-today'; }
+      else if (i.dueDate === tomorrow) { dateLabel = 'Due tomorrow'; dateClass = 'due-tomorrow'; }
+      else { dateLabel = 'Due ' + formatDate(i.dueDate); }
+    }
+    return `<div class="item${i.done?' done':''}">
+      <div class="check" onclick="toggleTodo(${i.id})">${chk()}</div>
+      <div class="prio-dot prio-${i.prio}" onclick="cyclePrio(${i.id})" title="Change priority"></div>
+      <div class="item-body">
+        <div class="item-text">${esc(i.text)}</div>
+        ${dateLabel ? `<div class="item-date ${dateClass}">📅 ${dateLabel}</div>` : ''}
+      </div>
+      ${i.who ? `<span class="tag tag-person">${esc(i.who)}</span>` : ''}
+      <div class="item-actions">
+        <button class="icon-btn" onclick="openEditTodo(${i.id})">${editIcon()}</button>
+        <button class="icon-btn del" onclick="delTodo(${i.id})">${xi()}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── CALENDAR ─────────────────────────────────────────────
+let calDate = new Date(), selDate = null;
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function changeMonth(d) { calDate = new Date(calDate.getFullYear(), calDate.getMonth()+d, 1); renderCalendar(); }
+
+function renderCalendar() {
+  const y = calDate.getFullYear(), m = calDate.getMonth(), today = new Date();
+  document.getElementById('cal-label').textContent = MONTHS[m] + ' ' + y;
+  const first = new Date(y,m,1).getDay(), days = new Date(y,m+1,0).getDate(), prev = new Date(y,m,0).getDate();
+  let html = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  for (let i=first-1; i>=0; i--) html += `<div class="cal-day other">${prev-i}</div>`;
+  for (let d=1; d<=days; d++) {
+    const ds = dStr(y,m,d);
+    const isT = d===today.getDate() && m===today.getMonth() && y===today.getFullYear();
+    const isSel = ds===selDate;
+    const evts = state.events[ds] || [];
+    const count = evts.length;
+    const dotsHtml = count > 0
+      ? `<div class="evt-dots">${evts.slice(0,3).map(()=>'<div class="evt-dot"></div>').join('')}</div>`
+      : '';
+    html += `<div class="cal-day${isT?' today':''}${isSel?' selected':''}${count>1?' has-many':count===1?' has-evt':''}" onclick="selectDate('${ds}')">
+      <span>${d}</span>${dotsHtml}</div>`;
+  }
+  const total = Math.ceil((first+days)/7)*7;
+  for (let i=1; i<=total-(first+days); i++) html += `<div class="cal-day other">${i}</div>`;
+  document.getElementById('cal-grid').innerHTML = html;
+  renderEvents();
+}
+
+function selectDate(ds) {
+  selDate = ds;
+  const [y,m,d] = ds.split('-');
+  document.getElementById('sel-label').textContent = MONTHS_S[parseInt(m)-1] + ' ' + parseInt(d) + ', ' + y;
+  renderCalendar();
+  document.getElementById('ev-text').focus();
+}
+
+function addEvent() {
+  if (!selDate) { toast('Select a date first'); return; }
+  const t = document.getElementById('ev-text').value.trim();
+  const time = document.getElementById('ev-time').value;
+  const endTime = document.getElementById('ev-end-time').value;
+  const who = document.getElementById('ev-who').value.trim();
+  if (!t) return;
+  if (!state.events[selDate]) state.events[selDate] = [];
+  state.events[selDate].push({id:Date.now(), text:t, time, endTime, who});
+  state.events[selDate].sort((a,b) => (a.time||'99:99') < (b.time||'99:99') ? -1 : 1);
+  document.getElementById('ev-text').value = '';
+  saveData(); renderCalendar(); updateAlerts();
+}
+
+function openEditEvt(ds, id) {
+  const evts = state.events[ds];
+  if (!evts) return;
+  const e = evts.find(x=>x.id===id);
+  if (!e) return;
+  editingEvtDate = ds; editingEvtId = id;
+  document.getElementById('edit-ev-time').value = e.time || '';
+  document.getElementById('edit-ev-end-time').value = e.endTime || '';
+  document.getElementById('edit-ev-text').value = e.text;
+  document.getElementById('edit-ev-who').value = e.who || '';
+  document.getElementById('edit-evt-modal').classList.add('visible');
+}
+
+function saveEvtEdit() {
+  const evts = state.events[editingEvtDate];
+  if (!evts) return;
+  const e = evts.find(x=>x.id===editingEvtId);
+  if (!e) return;
+  const newText = document.getElementById('edit-ev-text').value.trim();
+  if (!newText) return;
+  e.time = document.getElementById('edit-ev-time').value;
+  e.endTime = document.getElementById('edit-ev-end-time').value;
+  e.text = newText;
+  e.who = document.getElementById('edit-ev-who').value.trim();
+  state.events[editingEvtDate].sort((a,b) => (a.time||'99:99') < (b.time||'99:99') ? -1 : 1);
+  closeModal('edit-evt-modal');
+  saveData(); renderCalendar(); updateAlerts();
+}
+
+function delEvent(ds, id) {
+  state.events[ds] = state.events[ds].filter(e=>e.id!==id);
+  if (!state.events[ds].length) delete state.events[ds];
+  saveData(); renderCalendar(); updateAlerts();
+}
+
+function renderEvents() {
+  const el = document.getElementById('ev-list');
+  if (!selDate) { el.innerHTML = ''; return; }
+  const evts = state.events[selDate] || [];
+  if (!evts.length) { el.innerHTML = `<div class="empty" style="padding:20px"><div class="icon">📅</div><p>No events this day</p></div>`; return; }
+  el.innerHTML = evts.map(e => {
+    const timeStr = e.time ? formatTime(e.time) : '—';
+    let durationHtml = '';
+    if (e.time && e.endTime) {
+      const dur = calcDuration(e.time, e.endTime);
+      if (dur) durationHtml = `<div class="evt-duration">Until ${formatTime(e.endTime)} · ${dur}</div>`;
+    }
+    return `<div class="evt-item">
+      <span class="evt-time">${timeStr}</span>
+      <div class="evt-body">
+        <div class="evt-text">${esc(e.text)}</div>
+        ${durationHtml}
+        ${e.who ? `<div class="evt-who">${esc(e.who)}</div>` : ''}
+      </div>
+      <div class="item-actions">
+        <button class="icon-btn" onclick="openEditEvt('${selDate}',${e.id})">${editIcon()}</button>
+        <button class="icon-btn del" onclick="delEvent('${selDate}',${e.id})">${xi()}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── WISHLIST ─────────────────────────────────────────────
+let activeWishFilter = 'all';
+const WISH_EMOJIS = { dream:'🌟', goal:'🎯', soon:'🌿' };
+const WISH_LABELS = { dream:'Dream', goal:'Goal', soon:'Soon' };
+
+function addWish() {
+  const t = document.getElementById('wi-text').value.trim();
+  const who = document.getElementById('wi-who').value.trim();
+  const note = document.getElementById('wi-note').value.trim();
+  const type = document.getElementById('wi-type').value;
+  if (!t) return;
+  if (!state.wishlist) state.wishlist = [];
+  state.wishlist.unshift({id:Date.now(), text:t, done:false, who, note, type});
+  document.getElementById('wi-text').value = '';
+  document.getElementById('wi-note').value = '';
+  saveData(); renderWishlist(); updateBadges();
+}
+
+function toggleWish(id) {
+  const i = (state.wishlist||[]).find(x=>x.id===id);
+  if (i) i.done = !i.done;
+  saveData(); renderWishlist(); updateBadges();
+}
+
+function delWish(id) {
+  state.wishlist = (state.wishlist||[]).filter(x=>x.id!==id);
+  saveData(); renderWishlist(); updateBadges();
+}
+
+function clearDoneWish() {
+  state.wishlist = (state.wishlist||[]).filter(i=>!i.done);
+  saveData(); renderWishlist(); updateBadges();
+}
+
+function openEditWish(id) {
+  const i = (state.wishlist||[]).find(x=>x.id===id);
+  if (!i) return;
+  editingWishId = id;
+  document.getElementById('edit-wi-text').value = i.text;
+  document.getElementById('edit-wi-who').value = i.who || '';
+  document.getElementById('edit-wi-note').value = i.note || '';
+  document.getElementById('edit-wi-type').value = i.type || 'dream';
+  document.getElementById('edit-wish-modal').classList.add('visible');
+}
+
+function saveWishEdit() {
+  const i = (state.wishlist||[]).find(x=>x.id===editingWishId);
+  if (!i) return;
+  const newText = document.getElementById('edit-wi-text').value.trim();
+  if (!newText) return;
+  i.text = newText;
+  i.who = document.getElementById('edit-wi-who').value.trim();
+  i.note = document.getElementById('edit-wi-note').value.trim();
+  i.type = document.getElementById('edit-wi-type').value;
+  closeModal('edit-wish-modal');
+  saveData(); renderWishlist();
+}
+
+function filterWish(btn) {
+  activeWishFilter = btn.dataset.w;
+  document.querySelectorAll('#panel-wish .pills .pill').forEach(b => b.classList.toggle('on', b.dataset.w===activeWishFilter));
+  renderWishlist();
+}
+
+function renderWishlist() {
+  const el = document.getElementById('wi-list');
+  let items = state.wishlist || [];
+  if (activeWishFilter !== 'all') items = items.filter(i => i.type === activeWishFilter);
+  if (!items.length) { el.innerHTML = empty('✨','Add your first wish or dream!'); return; }
+  items = [...items].sort((a,b) => a.done-b.done);
+  el.innerHTML = items.map(i => `
+    <div class="wish-item${i.done?' done':''}">
+      <div class="wish-emoji">${WISH_EMOJIS[i.type]||'✨'}</div>
+      <div class="wish-body">
+        <div class="wish-text">${esc(i.text)}</div>
+        ${i.note ? `<div class="wish-meta">${esc(i.note)}</div>` : ''}
+        ${i.who ? `<div class="wish-meta">👤 ${esc(i.who)}</div>` : ''}
+      </div>
+      <span class="wish-tag wish-tag-${i.type||'dream'}">${WISH_LABELS[i.type]||'Dream'}</span>
+      <div class="item-actions">
+        <button class="icon-btn" onclick="toggleWish(${i.id})" title="${i.done?'Unmark':'Mark done'}">${i.done?'↩':'✓'}</button>
+        <button class="icon-btn" onclick="openEditWish(${i.id})">${editIcon()}</button>
+        <button class="icon-btn del" onclick="delWish(${i.id})">${xi()}</button>
+      </div>
+    </div>`).join('');
+}
+
+// ── MODALS ───────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('visible'); });
+});
+
+// ── HELPERS ──────────────────────────────────────────────
+function renderAll() {
+  renderShopping(); renderTodo(); renderWishlist();
+  if(document.getElementById('panel-cal').classList.contains('active')) renderCalendar();
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function dStr(y,m,d) { return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
+function formatDate(ds) { if(!ds) return ''; const [y,m,d]=ds.split('-'); return MONTHS_S[parseInt(m)-1]+' '+parseInt(d); }
+function empty(icon,msg) { return `<div class="empty"><div class="icon">${icon}</div><p>${msg}</p></div>`; }
+function chk() { return '<svg width="12" height="10" viewBox="0 0 12 10" fill="none"><path d="M1 5L4.5 8.5L11 1.5" stroke="#fdfaf5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
+function xi() { return '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'; }
+function editIcon() { return '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9.5 2.5l2 2L4 12H2v-2L9.5 2.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.log('SW registration failed:', err));
+  });
+}
+
+if (SCRIPT_URL) bootApp();
+</script>
+</body>
+</html>
