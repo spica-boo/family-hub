@@ -1,5 +1,5 @@
 // Family Hub Service Worker
-const CACHE_NAME = 'familyhub-v10';
+const CACHE_NAME = 'familyhub-v11';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -35,8 +35,8 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Never cache Apps Script API calls — always go to network
-  if (url.hostname.includes('script.google.com')) {
+  // Never cache Supabase or Apps Script API calls
+  if (url.hostname.includes('supabase.co') || url.hostname.includes('script.google.com')) {
     event.respondWith(fetch(event.request));
     return;
   }
