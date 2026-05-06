@@ -3,6 +3,7 @@
   "short_name": "FamilyHub",
   "description": "Shared family shopping list, to-do list and calendar",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#1c1814",
