@@ -1,5 +1,5 @@
 // Family Hub Service Worker
-const CACHE_NAME = 'familyhub-v12';
+const CACHE_NAME = 'familyhub-v13';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -58,6 +58,49 @@ self.addEventListener('fetch', event => {
           return caches.match('/index.html');
         }
       });
+    })
+  );
+});
+
+// ── PUSH NOTIFICATIONS ───────────────────────────────────
+self.addEventListener('push', event => {
+  let data = { title: 'Family Hub', body: 'You have upcoming events tomorrow.' };
+  if (event.data) {
+    try { data = event.data.json(); } catch(e) { data.body = event.data.text(); }
+  }
+
+  const options = {
+    body: data.body,
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: 'family-hub-reminder',   // replaces previous notification instead of stacking
+    renotify: true,
+    data: { url: data.url || '/' },
+    actions: [
+      { action: 'open', title: '📅 View Calendar' }
+    ]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Family Hub', options)
+  );
+});
+
+// Tap notification — open or focus the app
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const target = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      // If app already open, focus it
+      for (const client of list) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // Otherwise open new window
+      if (clients.openWindow) return clients.openWindow(target);
     })
   );
 });

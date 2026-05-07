@@ -184,6 +184,27 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 /* TOAST */
 .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--ink); color: var(--surface); padding: 12px 24px; border-radius: 20px; font-size: 14px; font-weight: 500; z-index: 999; transition: transform .3s cubic-bezier(.34,1.56,.64,1); white-space: nowrap; pointer-events: none; }
 .toast.show { transform: translateX(-50%) translateY(0); }
+
+/* BELL BUTTON */
+.bell-btn { background: none; border: none; font-size: 16px; cursor: pointer; padding: 4px 8px; opacity: .5; transition: opacity .2s; }
+.bell-btn.on { opacity: 1; }
+
+/* PRODUCT PREVIEW MODAL */
+.product-preview { text-align: center; }
+.product-img { width: 100%; max-height: 220px; object-fit: contain; border-radius: var(--radius-sm); margin-bottom: 14px; background: var(--bg); }
+.product-link-btn { display: block; width: 100%; padding: 13px; background: var(--ink); color: var(--surface); border: none; border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; margin-bottom: 10px; }
+.product-link-btn:hover { opacity: .85; }
+
+/* ITEM WITH PRODUCT LINK — show subtle indicator */
+.has-product .item-text::after { content: ' 🔗'; font-size: 12px; opacity: .5; }
+.has-product-img .item-text::after { content: ' 📷'; font-size: 12px; opacity: .5; }
+
+/* FILE UPLOAD in modal */
+.modal-file-label { display: block; padding: 11px 14px; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--ink2); cursor: pointer; text-align: center; margin-bottom: 10px; transition: border-color .18s; }
+.modal-file-label:hover { border-color: var(--ink); }
+.modal-file-label input { display: none; }
+.modal-file-preview { width: 100%; max-height: 120px; object-fit: contain; border-radius: var(--radius-sm); margin-bottom: 10px; display: none; background: var(--bg); }
+.modal-file-preview.visible { display: block; }
 </style>
 </head>
 <body>
@@ -209,6 +230,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         <div class="status-dot" id="sdot"></div>
         <span id="slbl">loading…</span>
       </div>
+      <button class="bell-btn" id="bell-btn" onclick="toggleNotifications()" title="Toggle reminders">🔔</button>
       <button class="gear-btn" id="install-btn" onclick="installPWA()" title="Install App" style="display:none">📲</button>
       <button class="gear-btn" onclick="resetUrl()" title="Change URL">⚙</button>
     </div>
@@ -348,6 +370,12 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     <input class="modal-field" id="edit-sh-text" placeholder="Item…">
     <input class="modal-field" id="edit-sh-who" placeholder="Who?">
     <input class="modal-field" id="edit-sh-where" placeholder="Where? (e.g. Pak'nSave, Chemist…)">
+    <input class="modal-field" id="edit-sh-link" type="url" placeholder="Product link (optional)">
+    <img class="modal-file-preview" id="edit-sh-img-preview" alt="Product photo">
+    <label class="modal-file-label">
+      📷 Add/change photo
+      <input type="file" id="edit-sh-photo" accept="image/*" onchange="previewShopPhoto(this)">
+    </label>
     <div class="modal-row">
       <button class="modal-btn secondary" onclick="closeModal('edit-shop-modal')">Cancel</button>
       <button class="modal-btn primary" onclick="saveShopEdit()">Save</button>
@@ -367,6 +395,12 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
       <option value="goal">🎯 Goal</option>
       <option value="soon">🌿 Soon</option>
     </select>
+    <input class="modal-field" id="edit-wi-link" type="url" placeholder="Product link (optional)">
+    <img class="modal-file-preview" id="edit-wi-img-preview" alt="Product photo">
+    <label class="modal-file-label">
+      📷 Add/change photo
+      <input type="file" id="edit-wi-photo" accept="image/*" onchange="previewWishPhoto(this)">
+    </label>
     <div class="modal-row">
       <button class="modal-btn secondary" onclick="closeModal('edit-wish-modal')">Cancel</button>
       <button class="modal-btn primary" onclick="saveWishEdit()">Save</button>
@@ -375,6 +409,16 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- PRODUCT PREVIEW MODAL -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal product-preview">
+    <div class="modal-title" id="product-modal-title">Product</div>
+    <img class="product-img" id="product-modal-img" alt="Product" style="display:none">
+    <a class="product-link-btn" id="product-modal-link" href="#" target="_blank" rel="noopener" style="display:none">🛍️ View Product</a>
+    <button class="modal-btn secondary" onclick="closeModal('product-modal')">Close</button>
+  </div>
+</div>
 
 <script>
 const STORAGE_KEY = 'familyhub_sb_url';
@@ -415,6 +459,7 @@ function bootApp() {
   loadData();
   setInterval(pollData, POLL_MS);
   setInterval(checkSmartDismiss, 60000);
+  initPushState();
 }
 
 // ── STATUS ───────────────────────────────────────────────
@@ -656,6 +701,13 @@ function openEditShop(id) {
   document.getElementById('edit-sh-text').value = i.text;
   document.getElementById('edit-sh-who').value = i.who || '';
   document.getElementById('edit-sh-where').value = i.where || '';
+  document.getElementById('edit-sh-link').value = i.link || '';
+  // Show existing photo if any
+  const prev = document.getElementById('edit-sh-img-preview');
+  if (i.photo) { prev.src = i.photo; prev.classList.add('visible'); }
+  else { prev.src = ''; prev.classList.remove('visible'); }
+  document.getElementById('edit-sh-photo').value = '';
+  pendingShopPhoto = null;
   document.getElementById('edit-shop-modal').classList.add('visible');
 }
 
@@ -667,6 +719,9 @@ function saveShopEdit() {
   i.text = newText;
   i.who = document.getElementById('edit-sh-who').value.trim();
   i.where = document.getElementById('edit-sh-where').value.trim();
+  i.link = document.getElementById('edit-sh-link').value.trim();
+  if (pendingShopPhoto) i.photo = pendingShopPhoto;
+  pendingShopPhoto = null;
   closeModal('edit-shop-modal');
   saveData(); renderShopping();
 }
@@ -693,10 +748,14 @@ function renderShopping() {
   if (activeWhere !== 'all') items = items.filter(i => i.where === activeWhere);
   if (!items.length) { el.innerHTML = empty('🛒', activeWhere==='all'?'Nothing on the list yet':'No items here'); renderWherePills(); return; }
   items = [...items].sort((a,b) => a.done-b.done);
-  el.innerHTML = items.map(i => `
-    <div class="item${i.done?' done':''}">
+  el.innerHTML = items.map(i => {
+    const hasProduct = i.link || i.photo;
+    const productClass = i.photo ? ' has-product-img' : i.link ? ' has-product' : '';
+    const bodyClick = hasProduct ? `onclick="openProductPreview(${i.id},'shop')" style="cursor:pointer"` : '';
+    return `
+    <div class="item${i.done?' done':''}${productClass}">
       <div class="check" onclick="toggleShop(${i.id})">${chk()}</div>
-      <div class="item-body">
+      <div class="item-body" ${bodyClick}>
         <div class="item-text">${esc(i.text)}</div>
         ${i.where ? `<div class="item-sub">📍 ${esc(i.where)}</div>` : ''}
       </div>
@@ -705,7 +764,8 @@ function renderShopping() {
         <button class="icon-btn" onclick="openEditShop(${i.id})">${editIcon()}</button>
         <button class="icon-btn del" onclick="delShop(${i.id})">${xi()}</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   renderWherePills();
 }
 
@@ -977,6 +1037,12 @@ function openEditWish(id) {
   document.getElementById('edit-wi-who').value = i.who || '';
   document.getElementById('edit-wi-note').value = i.note || '';
   document.getElementById('edit-wi-type').value = i.type || 'dream';
+  document.getElementById('edit-wi-link').value = i.link || '';
+  const prev = document.getElementById('edit-wi-img-preview');
+  if (i.photo) { prev.src = i.photo; prev.classList.add('visible'); }
+  else { prev.src = ''; prev.classList.remove('visible'); }
+  document.getElementById('edit-wi-photo').value = '';
+  pendingWishPhoto = null;
   document.getElementById('edit-wish-modal').classList.add('visible');
 }
 
@@ -989,6 +1055,9 @@ function saveWishEdit() {
   i.who = document.getElementById('edit-wi-who').value.trim();
   i.note = document.getElementById('edit-wi-note').value.trim();
   i.type = document.getElementById('edit-wi-type').value;
+  i.link = document.getElementById('edit-wi-link').value.trim();
+  if (pendingWishPhoto) i.photo = pendingWishPhoto;
+  pendingWishPhoto = null;
   closeModal('edit-wish-modal');
   saveData(); renderWishlist();
 }
@@ -1005,10 +1074,14 @@ function renderWishlist() {
   if (activeWishFilter !== 'all') items = items.filter(i => i.type === activeWishFilter);
   if (!items.length) { el.innerHTML = empty('✨','Add your first wish or dream!'); return; }
   items = [...items].sort((a,b) => a.done-b.done);
-  el.innerHTML = items.map(i => `
-    <div class="wish-item${i.done?' done':''}">
+  el.innerHTML = items.map(i => {
+    const hasProduct = i.link || i.photo;
+    const productClass = i.photo ? ' has-product-img' : i.link ? ' has-product' : '';
+    const bodyClick = hasProduct ? `onclick="openProductPreview(${i.id},'wish')" style="cursor:pointer"` : '';
+    return `
+    <div class="wish-item${i.done?' done':''}${productClass}">
       <div class="wish-emoji">${WISH_EMOJIS[i.type]||'✨'}</div>
-      <div class="wish-body">
+      <div class="wish-body" ${bodyClick}>
         <div class="wish-text">${esc(i.text)}</div>
         ${i.note ? `<div class="wish-meta">${esc(i.note)}</div>` : ''}
         ${i.who ? `<div class="wish-meta">👤 ${esc(i.who)}</div>` : ''}
@@ -1019,7 +1092,8 @@ function renderWishlist() {
         <button class="icon-btn" onclick="openEditWish(${i.id})">${editIcon()}</button>
         <button class="icon-btn del" onclick="delWish(${i.id})">${xi()}</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── MODALS ───────────────────────────────────────────────
@@ -1083,6 +1157,128 @@ function installPWA() {
     deferredPrompt = null;
     document.getElementById('install-btn').style.display = 'none';
   });
+}
+
+// ── PRODUCT PREVIEW ──────────────────────────────────────
+let pendingShopPhoto = null;
+let pendingWishPhoto = null;
+
+function previewShopPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingShopPhoto = e.target.result;
+    const prev = document.getElementById('edit-sh-img-preview');
+    prev.src = e.target.result;
+    prev.classList.add('visible');
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function previewWishPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingWishPhoto = e.target.result;
+    const prev = document.getElementById('edit-wi-img-preview');
+    prev.src = e.target.result;
+    prev.classList.add('visible');
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function openProductPreview(id, listType) {
+  const list = listType === 'shop' ? state.shopping : (state.wishlist || []);
+  const i = list.find(x => x.id === id);
+  if (!i) return;
+  document.getElementById('product-modal-title').textContent = i.text;
+  const img = document.getElementById('product-modal-img');
+  if (i.photo) { img.src = i.photo; img.style.display = 'block'; }
+  else { img.src = ''; img.style.display = 'none'; }
+  const link = document.getElementById('product-modal-link');
+  if (i.link) { link.href = i.link; link.style.display = 'block'; }
+  else { link.style.display = 'none'; }
+  document.getElementById('product-modal').classList.add('visible');
+}
+
+// ── PUSH NOTIFICATIONS ───────────────────────────────────
+const VAPID_PUBLIC_KEY = 'BNuuT-lYnjCGt9mJRo9HAhqR1gm6OV7TUAea_wsJpAkeSNCIDZXhYTwkr3LdwvvlzDWoM9zGDoYuoLOr3ZVCEGw'; // replace after generating
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return new Uint8Array([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function toggleNotifications() {
+  const btn = document.getElementById('bell-btn');
+  // If already subscribed — unsubscribe
+  if (btn.classList.contains('on')) {
+    await unsubscribePush();
+    return;
+  }
+  // Check permission
+  if (Notification.permission === 'denied') {
+    toast('Notifications blocked — enable in browser settings');
+    return;
+  }
+  await subscribePush();
+}
+
+async function subscribePush() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    // Save subscription to Supabase
+    const res = await fetch(SB_URL + '/rest/v1/push_subscriptions', {
+      method: 'POST',
+      headers: { ...sbHeaders(), 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ subscription: sub.toJSON(), created_at: new Date().toISOString() })
+    });
+    if (res.ok || res.status === 201) {
+      localStorage.setItem('fh_push', '1');
+      document.getElementById('bell-btn').classList.add('on');
+      toast('🔔 Reminders on! You\'ll hear about tomorrow\'s events at 6pm');
+    } else {
+      toast('Could not save subscription');
+    }
+  } catch (e) {
+    console.error('Subscribe error:', e);
+    toast('Could not enable notifications');
+  }
+}
+
+async function unsubscribePush() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      // Remove from Supabase by endpoint match
+      const endpoint = encodeURIComponent(sub.endpoint);
+      await fetch(SB_URL + `/rest/v1/push_subscriptions?subscription->>endpoint=eq.${sub.endpoint}`, {
+        method: 'DELETE',
+        headers: sbHeaders()
+      });
+      await sub.unsubscribe();
+    }
+    localStorage.removeItem('fh_push');
+    document.getElementById('bell-btn').classList.remove('on');
+    toast('🔕 Reminders off');
+  } catch(e) {
+    console.error('Unsubscribe error:', e);
+    toast('Could not disable notifications');
+  }
+}
+
+async function initPushState() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if (sub) document.getElementById('bell-btn').classList.add('on');
 }
 
 if (SB_URL && SB_KEY) bootApp();
