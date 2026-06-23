@@ -194,12 +194,8 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .product-img { width: 100%; max-height: 220px; object-fit: contain; border-radius: var(--radius-sm); margin-bottom: 14px; background: var(--bg); }
 .product-link-btn { display: block; width: 100%; padding: 13px; background: var(--ink); color: var(--surface); border: none; border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; margin-bottom: 10px; }
 .product-link-btn:hover { opacity: .85; }
-
-/* ITEM WITH PRODUCT LINK — show subtle indicator */
 .has-product .item-text::after { content: ' 🔗'; font-size: 12px; opacity: .5; }
 .has-product-img .item-text::after { content: ' 📷'; font-size: 12px; opacity: .5; }
-
-/* FILE UPLOAD in modal */
 .modal-file-label { display: block; padding: 11px 14px; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--ink2); cursor: pointer; text-align: center; margin-bottom: 10px; transition: border-color .18s; }
 .modal-file-label:hover { border-color: var(--ink); }
 .modal-file-label input { display: none; }
@@ -214,7 +210,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     <div class="setup-logo">☀️ Family <em>Hub</em></div>
     <div class="setup-sub">Shopping · To-Do · Calendar · Wishlist</div>
     <div class="setup-label">Supabase Project URL</div>
-    <input class="setup-input" id="sb-url-input" type="url" placeholder="https://xxxx.supabase.co">
+    <input class="setup-input" id="sb-url-input" type="text" placeholder="https://xxxx.supabase.co">
     <div class="setup-label">Supabase Anon Key</div>
     <input class="setup-input" id="sb-key-input" type="text" placeholder="eyJhbGci…">
     <div class="setup-hint">Only needed once per device — saved automatically.</div>
@@ -370,7 +366,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     <input class="modal-field" id="edit-sh-text" placeholder="Item…">
     <input class="modal-field" id="edit-sh-who" placeholder="Who?">
     <input class="modal-field" id="edit-sh-where" placeholder="Where? (e.g. Pak'nSave, Chemist…)">
-    <input class="modal-field" id="edit-sh-link" type="url" placeholder="Product link (optional)">
+    <input class="modal-field" id="edit-sh-link" type="text" placeholder="Product link (optional)">
     <img class="modal-file-preview" id="edit-sh-img-preview" alt="Product photo">
     <label class="modal-file-label">
       📷 Add/change photo
@@ -395,7 +391,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
       <option value="goal">🎯 Goal</option>
       <option value="soon">🌿 Soon</option>
     </select>
-    <input class="modal-field" id="edit-wi-link" type="url" placeholder="Product link (optional)">
+    <input class="modal-field" id="edit-wi-link" type="text" placeholder="Product link (optional)">
     <img class="modal-file-preview" id="edit-wi-img-preview" alt="Product photo">
     <label class="modal-file-label">
       📷 Add/change photo
@@ -460,6 +456,106 @@ function bootApp() {
   setInterval(pollData, POLL_MS);
   setInterval(checkSmartDismiss, 60000);
   initPushState();
+}
+
+// ── PRODUCT PREVIEW ──────────────────────────────────────
+let pendingShopPhoto = null;
+let pendingWishPhoto = null;
+
+function previewShopPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingShopPhoto = e.target.result;
+    const prev = document.getElementById('edit-sh-img-preview');
+    prev.src = e.target.result; prev.classList.add('visible');
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function previewWishPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingWishPhoto = e.target.result;
+    const prev = document.getElementById('edit-wi-img-preview');
+    prev.src = e.target.result; prev.classList.add('visible');
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function openProductPreview(id, listType) {
+  const list = listType === 'shop' ? state.shopping : (state.wishlist || []);
+  const i = list.find(x => x.id === id);
+  if (!i) return;
+  document.getElementById('product-modal-title').textContent = i.text;
+  const img = document.getElementById('product-modal-img');
+  if (i.photo) { img.src = i.photo; img.style.display = 'block'; }
+  else { img.src = ''; img.style.display = 'none'; }
+  const link = document.getElementById('product-modal-link');
+  if (i.link) { link.href = i.link; link.style.display = 'block'; }
+  else { link.style.display = 'none'; }
+  document.getElementById('product-modal').classList.add('visible');
+}
+
+// ── PUSH NOTIFICATIONS ───────────────────────────────────
+const VAPID_PUBLIC_KEY = 'BNuuT-lYnjCGt9mJRo9HAhqR1gm6OV7TUAea_wsJpAkeSNCIDZXhYTwkr3LdwvvlzDWoM9zGDoYuoLOr3ZVCEGw';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return new Uint8Array([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function toggleNotifications() {
+  const btn = document.getElementById('bell-btn');
+  if (btn.classList.contains('on')) { await unsubscribePush(); return; }
+  if (Notification.permission === 'denied') { toast('Notifications blocked — enable in browser settings'); return; }
+  await subscribePush();
+}
+
+async function subscribePush() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    const res = await fetch(SB_URL + '/rest/v1/push_subscriptions', {
+      method: 'POST',
+      headers: { ...sbHeaders(), 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ subscription: sub.toJSON(), created_at: new Date().toISOString() })
+    });
+    if (res.ok || res.status === 201) {
+      localStorage.setItem('fh_push', '1');
+      document.getElementById('bell-btn').classList.add('on');
+      toast('🔔 Reminders on! You\'ll hear about tomorrow\'s events at 6pm');
+    } else { toast('Could not save subscription'); }
+  } catch(e) { console.error('Subscribe error:', e); toast('Could not enable notifications'); }
+}
+
+async function unsubscribePush() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await fetch(SB_URL + `/rest/v1/push_subscriptions?subscription->>endpoint=eq.${encodeURIComponent(sub.endpoint)}`, {
+        method: 'DELETE', headers: sbHeaders()
+      });
+      await sub.unsubscribe();
+    }
+    localStorage.removeItem('fh_push');
+    document.getElementById('bell-btn').classList.remove('on');
+    toast('🔕 Reminders off');
+  } catch(e) { console.error('Unsubscribe error:', e); toast('Could not disable notifications'); }
+}
+
+async function initPushState() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if (sub) document.getElementById('bell-btn').classList.add('on');
 }
 
 // ── STATUS ───────────────────────────────────────────────
@@ -702,7 +798,6 @@ function openEditShop(id) {
   document.getElementById('edit-sh-who').value = i.who || '';
   document.getElementById('edit-sh-where').value = i.where || '';
   document.getElementById('edit-sh-link').value = i.link || '';
-  // Show existing photo if any
   const prev = document.getElementById('edit-sh-img-preview');
   if (i.photo) { prev.src = i.photo; prev.classList.add('visible'); }
   else { prev.src = ''; prev.classList.remove('visible'); }
@@ -1157,128 +1252,6 @@ function installPWA() {
     deferredPrompt = null;
     document.getElementById('install-btn').style.display = 'none';
   });
-}
-
-// ── PRODUCT PREVIEW ──────────────────────────────────────
-let pendingShopPhoto = null;
-let pendingWishPhoto = null;
-
-function previewShopPhoto(input) {
-  if (!input.files || !input.files[0]) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    pendingShopPhoto = e.target.result;
-    const prev = document.getElementById('edit-sh-img-preview');
-    prev.src = e.target.result;
-    prev.classList.add('visible');
-  };
-  reader.readAsDataURL(input.files[0]);
-}
-
-function previewWishPhoto(input) {
-  if (!input.files || !input.files[0]) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    pendingWishPhoto = e.target.result;
-    const prev = document.getElementById('edit-wi-img-preview');
-    prev.src = e.target.result;
-    prev.classList.add('visible');
-  };
-  reader.readAsDataURL(input.files[0]);
-}
-
-function openProductPreview(id, listType) {
-  const list = listType === 'shop' ? state.shopping : (state.wishlist || []);
-  const i = list.find(x => x.id === id);
-  if (!i) return;
-  document.getElementById('product-modal-title').textContent = i.text;
-  const img = document.getElementById('product-modal-img');
-  if (i.photo) { img.src = i.photo; img.style.display = 'block'; }
-  else { img.src = ''; img.style.display = 'none'; }
-  const link = document.getElementById('product-modal-link');
-  if (i.link) { link.href = i.link; link.style.display = 'block'; }
-  else { link.style.display = 'none'; }
-  document.getElementById('product-modal').classList.add('visible');
-}
-
-// ── PUSH NOTIFICATIONS ───────────────────────────────────
-const VAPID_PUBLIC_KEY = 'BNuuT-lYnjCGt9mJRo9HAhqR1gm6OV7TUAea_wsJpAkeSNCIDZXhYTwkr3LdwvvlzDWoM9zGDoYuoLOr3ZVCEGw'; // replace after generating
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = atob(base64);
-  return new Uint8Array([...raw].map(c => c.charCodeAt(0)));
-}
-
-async function toggleNotifications() {
-  const btn = document.getElementById('bell-btn');
-  // If already subscribed — unsubscribe
-  if (btn.classList.contains('on')) {
-    await unsubscribePush();
-    return;
-  }
-  // Check permission
-  if (Notification.permission === 'denied') {
-    toast('Notifications blocked — enable in browser settings');
-    return;
-  }
-  await subscribePush();
-}
-
-async function subscribePush() {
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-    });
-    // Save subscription to Supabase
-    const res = await fetch(SB_URL + '/rest/v1/push_subscriptions', {
-      method: 'POST',
-      headers: { ...sbHeaders(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ subscription: sub.toJSON(), created_at: new Date().toISOString() })
-    });
-    if (res.ok || res.status === 201) {
-      localStorage.setItem('fh_push', '1');
-      document.getElementById('bell-btn').classList.add('on');
-      toast('🔔 Reminders on! You\'ll hear about tomorrow\'s events at 6pm');
-    } else {
-      toast('Could not save subscription');
-    }
-  } catch (e) {
-    console.error('Subscribe error:', e);
-    toast('Could not enable notifications');
-  }
-}
-
-async function unsubscribePush() {
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if (sub) {
-      // Remove from Supabase by endpoint match
-      const endpoint = encodeURIComponent(sub.endpoint);
-      await fetch(SB_URL + `/rest/v1/push_subscriptions?subscription->>endpoint=eq.${sub.endpoint}`, {
-        method: 'DELETE',
-        headers: sbHeaders()
-      });
-      await sub.unsubscribe();
-    }
-    localStorage.removeItem('fh_push');
-    document.getElementById('bell-btn').classList.remove('on');
-    toast('🔕 Reminders off');
-  } catch(e) {
-    console.error('Unsubscribe error:', e);
-    toast('Could not disable notifications');
-  }
-}
-
-async function initPushState() {
-  if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
-  const reg = await navigator.serviceWorker.ready;
-  const sub = await reg.pushManager.getSubscription();
-  if (sub) document.getElementById('bell-btn').classList.add('on');
 }
 
 if (SB_URL && SB_KEY) bootApp();
