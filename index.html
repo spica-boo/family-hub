@@ -709,15 +709,21 @@ function openEditNote(id) {
 
 function renderEditChecklist(items) {
   const el = document.getElementById('edit-nt-items');
-  el.innerHTML = items.map((item, idx) => `
-    <div class="edit-checklist-item">
-      <input type="text" id="cl-item-${idx}" placeholder="Item…">
-      <button onclick="removeChecklistItem(${idx})">✕</button>
-    </div>`).join('');
-  // Set values directly to avoid HTML encoding issues
+  el.innerHTML = '';
   items.forEach((item, idx) => {
-    const inp = document.getElementById('cl-item-' + idx);
-    if (inp) inp.value = item.text;
+    const div = document.createElement('div');
+    div.className = 'edit-checklist-item';
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.placeholder = 'Item…';
+    inp.value = item.text || '';
+    inp.id = 'cl-item-' + idx;
+    const btn = document.createElement('button');
+    btn.textContent = '✕';
+    btn.onclick = () => removeChecklistItem(idx);
+    div.appendChild(inp);
+    div.appendChild(btn);
+    el.appendChild(div);
   });
 }
 
@@ -725,26 +731,29 @@ function addChecklistItem() {
   const n = (state.notes||[]).find(x=>x.id===editingNoteId);
   if (!n) return;
   if (!n.items) n.items = [];
-  // Read ALL current input values from DOM before touching n.items
-  const inputs = Array.from(document.getElementById('edit-nt-items').getElementsByTagName('input'));
-  const currentTexts = inputs.map(inp => inp.value);
-  // Rebuild n.items from DOM (preserving done state)
-  n.items = currentTexts.map((text, idx) => ({ text, done: (n.items[idx]||{}).done||false }));
-  // Now add the new empty item
+  // Snapshot current DOM values into n.items
+  const el = document.getElementById('edit-nt-items');
+  const inputs = el.getElementsByTagName('input');
+  for (let i = 0; i < inputs.length; i++) {
+    if (n.items[i]) n.items[i].text = inputs[i].value;
+  }
   n.items.push({ text: '', done: false });
   renderEditChecklist(n.items);
   setTimeout(() => {
-    const all = Array.from(document.getElementById('edit-nt-items').getElementsByTagName('input'));
-    if (all.length) all[all.length-1].focus();
+    const all = document.getElementById('edit-nt-items').getElementsByTagName('input');
+    if (all.length) all[all.length - 1].focus();
   }, 50);
 }
 
 function removeChecklistItem(idx) {
   const n = (state.notes||[]).find(x=>x.id===editingNoteId);
   if (!n || !n.items) return;
-  // Read ALL current input values from DOM before removing
-  const inputs = Array.from(document.getElementById('edit-nt-items').getElementsByTagName('input'));
-  n.items = inputs.map((inp, i) => ({ text: inp.value, done: (n.items[i]||{}).done||false }));
+  // Snapshot current DOM values into n.items
+  const el = document.getElementById('edit-nt-items');
+  const inputs = el.getElementsByTagName('input');
+  for (let i = 0; i < inputs.length; i++) {
+    if (n.items[i]) n.items[i].text = inputs[i].value;
+  }
   n.items.splice(idx, 1);
   renderEditChecklist(n.items);
 }
@@ -761,12 +770,14 @@ function saveNoteEdit() {
   n.cat = document.getElementById('edit-nt-cat').value;
   n.who = document.getElementById('edit-nt-who').value.trim();
   if (n.type === 'checklist') {
-    // Read all current input values directly from DOM
-    const inputs = Array.from(document.getElementById('edit-nt-items').getElementsByTagName('input'));
+    const el = document.getElementById('edit-nt-items');
+    const inputs = el.getElementsByTagName('input');
     const existingDone = n.items ? n.items.map(i => i.done) : [];
-    n.items = inputs
-      .map((inp, idx) => ({ text: inp.value.trim(), done: existingDone[idx] || false }))
-      .filter(i => i.text.length > 0);
+    n.items = [];
+    for (let i = 0; i < inputs.length; i++) {
+      const text = inputs[i].value.trim();
+      if (text) n.items.push({ text, done: existingDone[i] || false });
+    }
   } else {
     n.body = document.getElementById('edit-nt-body').value.trim();
   }
