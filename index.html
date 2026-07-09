@@ -708,11 +708,17 @@ function openEditNote(id) {
 }
 
 function renderEditChecklist(items) {
-  document.getElementById('edit-nt-items').innerHTML = items.map((item, idx) => `
+  const el = document.getElementById('edit-nt-items');
+  el.innerHTML = items.map((item, idx) => `
     <div class="edit-checklist-item">
-      <input type="text" value="${esc(item.text)}" id="cl-item-${idx}" placeholder="Item…">
+      <input type="text" id="cl-item-${idx}" placeholder="Item…">
       <button onclick="removeChecklistItem(${idx})">✕</button>
     </div>`).join('');
+  // Set values directly to avoid HTML encoding issues
+  items.forEach((item, idx) => {
+    const inp = document.getElementById('cl-item-' + idx);
+    if (inp) inp.value = item.text;
+  });
 }
 
 function addChecklistItem() {
