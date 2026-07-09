@@ -725,24 +725,26 @@ function addChecklistItem() {
   const n = (state.notes||[]).find(x=>x.id===editingNoteId);
   if (!n) return;
   if (!n.items) n.items = [];
-  // Save current text inputs before adding new item
+  // Read ALL current input values from DOM before touching n.items
   const inputs = Array.from(document.getElementById('edit-nt-items').getElementsByTagName('input'));
-  inputs.forEach((inp, idx) => { if (n.items[idx]) n.items[idx].text = inp.value; });
+  const currentTexts = inputs.map(inp => inp.value);
+  // Rebuild n.items from DOM (preserving done state)
+  n.items = currentTexts.map((text, idx) => ({ text, done: (n.items[idx]||{}).done||false }));
+  // Now add the new empty item
   n.items.push({ text: '', done: false });
   renderEditChecklist(n.items);
-  // Focus new item
   setTimeout(() => {
-    const allInputs = document.querySelectorAll('#edit-nt-items input[type=text]');
-    if (allInputs.length) allInputs[allInputs.length-1].focus();
+    const all = Array.from(document.getElementById('edit-nt-items').getElementsByTagName('input'));
+    if (all.length) all[all.length-1].focus();
   }, 50);
 }
 
 function removeChecklistItem(idx) {
   const n = (state.notes||[]).find(x=>x.id===editingNoteId);
   if (!n || !n.items) return;
-  // Save current text inputs before removing
+  // Read ALL current input values from DOM before removing
   const inputs = Array.from(document.getElementById('edit-nt-items').getElementsByTagName('input'));
-  inputs.forEach((inp, i) => { if (n.items[i]) n.items[i].text = inp.value; });
+  n.items = inputs.map((inp, i) => ({ text: inp.value, done: (n.items[i]||{}).done||false }));
   n.items.splice(idx, 1);
   renderEditChecklist(n.items);
 }
