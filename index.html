@@ -190,19 +190,24 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .bell-btn.on { opacity: 1; }
 
 /* NOTES */
-.note-card { background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; cursor: pointer; transition: box-shadow .18s; }
-.note-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,.08); }
-.note-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.note-card-title { font-size: 16px; font-weight: 600; flex: 1; }
-.note-cat-tag { font-size: 11px; padding: 3px 8px; border-radius: 20px; background: var(--bg); color: var(--ink2); font-weight: 500; }
-.note-card-meta { font-size: 13px; color: var(--ink2); margin-bottom: 8px; }
-.note-card-preview { font-size: 14px; color: var(--ink2); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.note-card-actions { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; }
-.checklist-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.note-card { background: var(--surface); border-radius: var(--radius); padding: 11px 14px; margin-bottom: 6px; cursor: pointer; transition: box-shadow .18s; display: flex; align-items: center; gap: 8px; }
+.note-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+.note-card-main { flex: 1; min-width: 0; }
+.note-card-title { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.note-card-who { font-size: 12px; color: var(--ink2); margin-top: 2px; }
+.note-cat-tag { font-size: 11px; padding: 3px 8px; border-radius: 20px; background: var(--bg); color: var(--ink2); font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+.note-cat-tag.health { background: #ffeaea; color: #c0392b; }
+.note-cat-tag.events { background: #eef3ff; color: #3a5bd9; }
+.note-cat-tag.general { background: var(--bg); color: var(--ink2); }
+.note-card-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.checklist-item { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
 .checklist-item:last-child { border-bottom: none; }
-.checklist-item input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--ink); }
-.checklist-item label { font-size: 15px; cursor: pointer; flex: 1; }
-.checklist-item.done label { text-decoration: line-through; opacity: .5; }
+.checklist-item input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--ink); flex-shrink: 0; }
+.checklist-item label { font-size: 15px; cursor: pointer; flex: 1; line-height: 1.4; }
+.checklist-item.done label { text-decoration: line-through; opacity: .45; }
+.freeform-line { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 15px; line-height: 1.5; display: flex; gap: 8px; align-items: baseline; }
+.freeform-line:last-child { border-bottom: none; }
+.freeform-bullet { color: var(--ink2); font-size: 16px; flex-shrink: 0; }
 .edit-checklist-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .edit-checklist-item input[type=text] { flex: 1; padding: 8px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; font-size: 14px; background: var(--bg); }
 .edit-checklist-item button { background: none; border: none; color: var(--ink2); cursor: pointer; font-size: 18px; padding: 4px; }
@@ -353,13 +358,13 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
           <button class="add-btn" onclick="addNote()">Add</button>
         </div>
         <div class="add-row">
-          <select class="field" id="nt-cat" style="width:130px">
+          <select class="field" id="nt-cat">
             <option value="general">📋 General</option>
             <option value="health">💊 Health</option>
             <option value="events">🎉 Events</option>
           </select>
           <input class="field narrow" id="nt-who" placeholder="Who?">
-          <select class="field" id="nt-type" style="width:130px">
+          <select class="field" id="nt-type">
             <option value="freeform">📝 Freeform</option>
             <option value="checklist">✅ Checklist</option>
           </select>
@@ -616,20 +621,17 @@ function renderNotes() {
   if (activeNotesFilter !== 'all') items = items.filter(n => n.cat === activeNotesFilter);
   if (!items.length) { el.innerHTML = empty('📝', 'No notes yet — add one above!'); return; }
   el.innerHTML = items.map(n => {
-    const preview = n.type === 'checklist'
-      ? (n.items||[]).map(i => (i.done?'☑':'☐') + ' ' + i.text).slice(0,2).join(' · ')
-      : (n.body||'').slice(0, 80);
+    const catClass = n.cat || 'general';
     return `
     <div class="note-card" onclick="openViewNote(${n.id})">
-      <div class="note-card-header">
+      <div class="note-card-main">
         <div class="note-card-title">${esc(n.title)}</div>
-        <span class="note-cat-tag">${NOTE_CATS[n.cat]||n.cat}</span>
+        ${n.who && n.who !== 'All' ? `<div class="note-card-who">👤 ${esc(n.who)}</div>` : ''}
       </div>
-      ${n.who ? `<div class="note-card-meta">👤 ${esc(n.who)}</div>` : ''}
-      ${preview ? `<div class="note-card-preview">${esc(preview)}</div>` : ''}
-      <div class="note-card-actions">
-        <button class="icon-btn" onclick="event.stopPropagation();openEditNote(${n.id})">${editIcon()}</button>
-        <button class="icon-btn del" onclick="event.stopPropagation();delNote(${n.id})">${xi()}</button>
+      <span class="note-cat-tag ${catClass}">${NOTE_CATS[n.cat]||n.cat}</span>
+      <div class="note-card-actions" onclick="event.stopPropagation()">
+        <button class="icon-btn" onclick="openEditNote(${n.id})">${editIcon()}</button>
+        <button class="icon-btn del" onclick="delNote(${n.id})">${xi()}</button>
       </div>
     </div>`;
   }).join('');
@@ -640,7 +642,8 @@ function openViewNote(id) {
   if (!n) return;
   viewingNoteId = id;
   document.getElementById('view-nt-title').textContent = n.title;
-  document.getElementById('view-nt-who').textContent = n.who ? '👤 ' + n.who + ' · ' + (NOTE_CATS[n.cat]||n.cat) : (NOTE_CATS[n.cat]||n.cat);
+  const who = n.who && n.who !== 'All' ? n.who : null;
+  document.getElementById('view-nt-who').textContent = who ? `👤 ${who} · ${NOTE_CATS[n.cat]||n.cat}` : (NOTE_CATS[n.cat]||n.cat);
   const bodyEl = document.getElementById('view-nt-body');
   const listEl = document.getElementById('view-nt-checklist');
   const resetBtn = document.getElementById('view-nt-reset-btn');
@@ -654,9 +657,17 @@ function openViewNote(id) {
       </div>`).join('');
   } else {
     bodyEl.style.display = 'block';
-    bodyEl.textContent = n.body || '';
     resetBtn.style.display = 'none';
     listEl.innerHTML = '';
+    // Split body into lines and show each with a bullet
+    const lines = (n.body||'').split('\n').filter(l => l.trim());
+    if (lines.length > 1) {
+      bodyEl.innerHTML = lines.map(l =>
+        `<div class="freeform-line"><span class="freeform-bullet">•</span><span>${esc(l.trim())}</span></div>`
+      ).join('');
+    } else {
+      bodyEl.textContent = n.body || '';
+    }
   }
   document.getElementById('view-note-modal').classList.add('visible');
 }
@@ -708,21 +719,24 @@ function addChecklistItem() {
   const n = (state.notes||[]).find(x=>x.id===editingNoteId);
   if (!n) return;
   if (!n.items) n.items = [];
-  // Save current edits first
-  syncChecklistEdits(n);
+  // Save current text inputs before adding new item
+  const inputs = document.querySelectorAll('#edit-nt-items input[type=text]');
+  inputs.forEach((inp, idx) => { if (n.items[idx]) n.items[idx].text = inp.value; });
   n.items.push({ text: '', done: false });
   renderEditChecklist(n.items);
   // Focus new item
   setTimeout(() => {
-    const inputs = document.querySelectorAll('#edit-nt-items input[type=text]');
-    if (inputs.length) inputs[inputs.length-1].focus();
+    const allInputs = document.querySelectorAll('#edit-nt-items input[type=text]');
+    if (allInputs.length) allInputs[allInputs.length-1].focus();
   }, 50);
 }
 
 function removeChecklistItem(idx) {
   const n = (state.notes||[]).find(x=>x.id===editingNoteId);
   if (!n || !n.items) return;
-  syncChecklistEdits(n);
+  // Save current text inputs before removing
+  const inputs = document.querySelectorAll('#edit-nt-items input[type=text]');
+  inputs.forEach((inp, i) => { if (n.items[i]) n.items[i].text = inp.value; });
   n.items.splice(idx, 1);
   renderEditChecklist(n.items);
 }
@@ -739,8 +753,12 @@ function saveNoteEdit() {
   n.cat = document.getElementById('edit-nt-cat').value;
   n.who = document.getElementById('edit-nt-who').value.trim();
   if (n.type === 'checklist') {
-    syncChecklistEdits(n);
-    n.items = n.items.filter(i => i.text);
+    // Read all current input values directly from DOM
+    const inputs = document.querySelectorAll('#edit-nt-items input[type=text]');
+    const existingDone = n.items ? n.items.map(i => i.done) : [];
+    n.items = Array.from(inputs)
+      .map((inp, idx) => ({ text: inp.value.trim(), done: existingDone[idx] || false }))
+      .filter(i => i.text);
   } else {
     n.body = document.getElementById('edit-nt-body').value.trim();
   }
