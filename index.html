@@ -189,6 +189,24 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .bell-btn { background: none; border: none; font-size: 16px; cursor: pointer; padding: 4px 8px; opacity: .5; transition: opacity .2s; }
 .bell-btn.on { opacity: 1; }
 
+/* NOTES */
+.note-card { background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; cursor: pointer; transition: box-shadow .18s; }
+.note-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+.note-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.note-card-title { font-size: 16px; font-weight: 600; flex: 1; }
+.note-cat-tag { font-size: 11px; padding: 3px 8px; border-radius: 20px; background: var(--bg); color: var(--ink2); font-weight: 500; }
+.note-card-meta { font-size: 13px; color: var(--ink2); margin-bottom: 8px; }
+.note-card-preview { font-size: 14px; color: var(--ink2); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.note-card-actions { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; }
+.checklist-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.checklist-item:last-child { border-bottom: none; }
+.checklist-item input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--ink); }
+.checklist-item label { font-size: 15px; cursor: pointer; flex: 1; }
+.checklist-item.done label { text-decoration: line-through; opacity: .5; }
+.edit-checklist-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.edit-checklist-item input[type=text] { flex: 1; padding: 8px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; font-size: 14px; background: var(--bg); }
+.edit-checklist-item button { background: none; border: none; color: var(--ink2); cursor: pointer; font-size: 18px; padding: 4px; }
+
 /* PRODUCT PREVIEW MODAL */
 .product-preview { text-align: center; }
 .product-img { width: 100%; max-height: 220px; object-fit: contain; border-radius: var(--radius-sm); margin-bottom: 14px; background: var(--bg); }
@@ -232,9 +250,10 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     </div>
     <div class="tabs">
       <button class="tab active" id="tab-shop" onclick="switchTab('shop')">🛒 <span class="badge" id="b-shop">0</span></button>
-      <button class="tab" id="tab-wish" onclick="switchTab('wish')">✨ <span class="badge" id="b-wish">0</span></button>
-      <button class="tab" id="tab-todo" onclick="switchTab('todo')">✅ <span class="badge" id="b-todo">0</span></button>
       <button class="tab" id="tab-cal" onclick="switchTab('cal')">📅</button>
+      <button class="tab" id="tab-todo" onclick="switchTab('todo')">✅ <span class="badge" id="b-todo">0</span></button>
+      <button class="tab" id="tab-wish" onclick="switchTab('wish')">✨ <span class="badge" id="b-wish">0</span></button>
+      <button class="tab" id="tab-notes" onclick="switchTab('notes')">📝</button>
     </div>
   </header>
 
@@ -324,6 +343,34 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         </div>
         <div class="list" id="wi-list"></div>
         <div class="action-bar"><button class="ghost-btn" onclick="clearDoneWish()">Clear ticked</button></div>
+      </div>
+
+      <!-- NOTES -->
+      <div class="panel" id="panel-notes">
+        <div class="page-title">Notes 📝</div>
+        <div class="add-row">
+          <input class="field main" id="nt-title" placeholder="Note title…" onkeydown="if(event.key==='Enter')addNote()">
+          <button class="add-btn" onclick="addNote()">Add</button>
+        </div>
+        <div class="add-row">
+          <select class="field" id="nt-cat" style="width:130px">
+            <option value="general">📋 General</option>
+            <option value="health">💊 Health</option>
+            <option value="events">🎉 Events</option>
+          </select>
+          <input class="field narrow" id="nt-who" placeholder="Who?">
+          <select class="field" id="nt-type" style="width:130px">
+            <option value="freeform">📝 Freeform</option>
+            <option value="checklist">✅ Checklist</option>
+          </select>
+        </div>
+        <div class="pills" id="notes-cat-pills">
+          <button class="pill on" data-c="all" onclick="filterNotes(this)">All</button>
+          <button class="pill" data-c="general" onclick="filterNotes(this)">📋 General</button>
+          <button class="pill" data-c="health" onclick="filterNotes(this)">💊 Health</button>
+          <button class="pill" data-c="events" onclick="filterNotes(this)">🎉 Events</button>
+        </div>
+        <div class="list" id="nt-list"></div>
       </div>
 
     </div>
@@ -416,6 +463,43 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   </div>
 </div>
 
+<!-- EDIT NOTE MODAL -->
+<div class="modal-overlay" id="edit-note-modal">
+  <div class="modal">
+    <div class="modal-title">Edit Note</div>
+    <input class="modal-field" id="edit-nt-title" placeholder="Title…">
+    <select class="modal-field" id="edit-nt-cat">
+      <option value="general">📋 General</option>
+      <option value="health">💊 Health</option>
+      <option value="events">🎉 Events</option>
+    </select>
+    <input class="modal-field" id="edit-nt-who" placeholder="Who? (optional)">
+    <textarea class="modal-field" id="edit-nt-body" placeholder="Content… (for freeform notes)" rows="5" style="resize:vertical;font-family:inherit;font-size:15px"></textarea>
+    <div id="edit-nt-checklist-area">
+      <div id="edit-nt-items"></div>
+      <button class="ghost-btn" onclick="addChecklistItem()" style="margin-top:8px">+ Add item</button>
+    </div>
+    <div class="modal-row">
+      <button class="modal-btn secondary" onclick="closeModal('edit-note-modal')">Cancel</button>
+      <button class="modal-btn primary" onclick="saveNoteEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW NOTE MODAL -->
+<div class="modal-overlay" id="view-note-modal">
+  <div class="modal">
+    <div class="modal-title" id="view-nt-title"></div>
+    <div id="view-nt-who" style="font-size:13px;color:var(--ink2);margin-bottom:12px"></div>
+    <div id="view-nt-body" style="white-space:pre-wrap;font-size:15px;line-height:1.6;margin-bottom:16px"></div>
+    <div id="view-nt-checklist" style="margin-bottom:16px"></div>
+    <div class="modal-row">
+      <button class="modal-btn secondary" onclick="closeModal('view-note-modal')">Close</button>
+      <button class="modal-btn primary" id="view-nt-reset-btn" onclick="resetChecklist()" style="display:none">↺ Reset ticks</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const STORAGE_KEY = 'familyhub_sb_url';
 const KEY_STORAGE = 'familyhub_sb_key';
@@ -423,7 +507,7 @@ const POLL_MS = 6000;
 let SB_URL = localStorage.getItem(STORAGE_KEY) || '';
 let SB_KEY = localStorage.getItem(KEY_STORAGE) || '';
 let ROW_ID = null;
-let state = { shopping: [], todo: [], events: {}, wishlist: [] };
+let state = { shopping: [], todo: [], events: {}, wishlist: [], notes: [] };
 let saving = false, saveQueue = false;
 let editingTodoId = null, editingEvtDate = null, editingEvtId = null, editingShopId = null, editingWishId = null;
 let alertExpanded = false;
@@ -496,6 +580,178 @@ function openProductPreview(id, listType) {
   if (i.link) { link.href = i.link; link.style.display = 'block'; }
   else { link.style.display = 'none'; }
   document.getElementById('product-modal').classList.add('visible');
+}
+
+// ── NOTES ────────────────────────────────────────────────
+let activeNotesFilter = 'all';
+let editingNoteId = null;
+let viewingNoteId = null;
+const NOTE_CATS = { general: '📋 General', health: '💊 Health', events: '🎉 Events' };
+
+function addNote() {
+  const title = document.getElementById('nt-title').value.trim();
+  if (!title) return;
+  const cat = document.getElementById('nt-cat').value;
+  const who = document.getElementById('nt-who').value.trim();
+  const type = document.getElementById('nt-type').value;
+  const note = { id: Date.now(), title, cat, who, type, body: '', items: [], created: new Date().toISOString() };
+  if (!state.notes) state.notes = [];
+  state.notes.unshift(note);
+  document.getElementById('nt-title').value = '';
+  document.getElementById('nt-who').value = '';
+  saveData(); renderNotes();
+  // Open edit modal immediately so they can fill content
+  openEditNote(note.id);
+}
+
+function filterNotes(btn) {
+  activeNotesFilter = btn.dataset.c;
+  document.querySelectorAll('#notes-cat-pills .pill').forEach(b => b.classList.toggle('on', b.dataset.c === activeNotesFilter));
+  renderNotes();
+}
+
+function renderNotes() {
+  const el = document.getElementById('nt-list');
+  let items = state.notes || [];
+  if (activeNotesFilter !== 'all') items = items.filter(n => n.cat === activeNotesFilter);
+  if (!items.length) { el.innerHTML = empty('📝', 'No notes yet — add one above!'); return; }
+  el.innerHTML = items.map(n => {
+    const preview = n.type === 'checklist'
+      ? (n.items||[]).map(i => (i.done?'☑':'☐') + ' ' + i.text).slice(0,2).join(' · ')
+      : (n.body||'').slice(0, 80);
+    return `
+    <div class="note-card" onclick="openViewNote(${n.id})">
+      <div class="note-card-header">
+        <div class="note-card-title">${esc(n.title)}</div>
+        <span class="note-cat-tag">${NOTE_CATS[n.cat]||n.cat}</span>
+      </div>
+      ${n.who ? `<div class="note-card-meta">👤 ${esc(n.who)}</div>` : ''}
+      ${preview ? `<div class="note-card-preview">${esc(preview)}</div>` : ''}
+      <div class="note-card-actions">
+        <button class="icon-btn" onclick="event.stopPropagation();openEditNote(${n.id})">${editIcon()}</button>
+        <button class="icon-btn del" onclick="event.stopPropagation();delNote(${n.id})">${xi()}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openViewNote(id) {
+  const n = (state.notes||[]).find(x=>x.id===id);
+  if (!n) return;
+  viewingNoteId = id;
+  document.getElementById('view-nt-title').textContent = n.title;
+  document.getElementById('view-nt-who').textContent = n.who ? '👤 ' + n.who + ' · ' + (NOTE_CATS[n.cat]||n.cat) : (NOTE_CATS[n.cat]||n.cat);
+  const bodyEl = document.getElementById('view-nt-body');
+  const listEl = document.getElementById('view-nt-checklist');
+  const resetBtn = document.getElementById('view-nt-reset-btn');
+  if (n.type === 'checklist') {
+    bodyEl.style.display = 'none';
+    resetBtn.style.display = 'block';
+    listEl.innerHTML = (n.items||[]).map((item, idx) => `
+      <div class="checklist-item${item.done?' done':''}">
+        <input type="checkbox" id="chk-${idx}" ${item.done?'checked':''} onchange="toggleChecklistItem(${idx})">
+        <label for="chk-${idx}">${esc(item.text)}</label>
+      </div>`).join('');
+  } else {
+    bodyEl.style.display = 'block';
+    bodyEl.textContent = n.body || '';
+    resetBtn.style.display = 'none';
+    listEl.innerHTML = '';
+  }
+  document.getElementById('view-note-modal').classList.add('visible');
+}
+
+function toggleChecklistItem(idx) {
+  const n = (state.notes||[]).find(x=>x.id===viewingNoteId);
+  if (!n || !n.items[idx]) return;
+  n.items[idx].done = !n.items[idx].done;
+  saveData(); openViewNote(viewingNoteId);
+}
+
+function resetChecklist() {
+  const n = (state.notes||[]).find(x=>x.id===viewingNoteId);
+  if (!n) return;
+  (n.items||[]).forEach(i => i.done = false);
+  saveData(); openViewNote(viewingNoteId);
+}
+
+function openEditNote(id) {
+  const n = (state.notes||[]).find(x=>x.id===id);
+  if (!n) return;
+  editingNoteId = id;
+  document.getElementById('edit-nt-title').value = n.title;
+  document.getElementById('edit-nt-cat').value = n.cat || 'general';
+  document.getElementById('edit-nt-who').value = n.who || '';
+  const bodyArea = document.getElementById('edit-nt-body');
+  const checklistArea = document.getElementById('edit-nt-checklist-area');
+  if (n.type === 'checklist') {
+    bodyArea.style.display = 'none';
+    checklistArea.style.display = 'block';
+    renderEditChecklist(n.items||[]);
+  } else {
+    bodyArea.style.display = 'block';
+    bodyArea.value = n.body || '';
+    checklistArea.style.display = 'none';
+  }
+  document.getElementById('edit-note-modal').classList.add('visible');
+}
+
+function renderEditChecklist(items) {
+  document.getElementById('edit-nt-items').innerHTML = items.map((item, idx) => `
+    <div class="edit-checklist-item">
+      <input type="text" value="${esc(item.text)}" id="cl-item-${idx}" placeholder="Item…">
+      <button onclick="removeChecklistItem(${idx})">✕</button>
+    </div>`).join('');
+}
+
+function addChecklistItem() {
+  const n = (state.notes||[]).find(x=>x.id===editingNoteId);
+  if (!n) return;
+  if (!n.items) n.items = [];
+  // Save current edits first
+  syncChecklistEdits(n);
+  n.items.push({ text: '', done: false });
+  renderEditChecklist(n.items);
+  // Focus new item
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#edit-nt-items input[type=text]');
+    if (inputs.length) inputs[inputs.length-1].focus();
+  }, 50);
+}
+
+function removeChecklistItem(idx) {
+  const n = (state.notes||[]).find(x=>x.id===editingNoteId);
+  if (!n || !n.items) return;
+  syncChecklistEdits(n);
+  n.items.splice(idx, 1);
+  renderEditChecklist(n.items);
+}
+
+function syncChecklistEdits(n) {
+  const inputs = document.querySelectorAll('#edit-nt-items input[type=text]');
+  inputs.forEach((inp, idx) => { if (n.items[idx]) n.items[idx].text = inp.value.trim(); });
+}
+
+function saveNoteEdit() {
+  const n = (state.notes||[]).find(x=>x.id===editingNoteId);
+  if (!n) return;
+  n.title = document.getElementById('edit-nt-title').value.trim() || n.title;
+  n.cat = document.getElementById('edit-nt-cat').value;
+  n.who = document.getElementById('edit-nt-who').value.trim();
+  if (n.type === 'checklist') {
+    syncChecklistEdits(n);
+    n.items = n.items.filter(i => i.text);
+  } else {
+    n.body = document.getElementById('edit-nt-body').value.trim();
+  }
+  closeModal('edit-note-modal');
+  saveData(); renderNotes();
+}
+
+function delNote(id) {
+  if (!confirm('Delete this note?')) return;
+  state.notes = (state.notes||[]).filter(x=>x.id!==id);
+  saveData(); renderNotes();
 }
 
 // ── PUSH NOTIFICATIONS ───────────────────────────────────
@@ -583,7 +839,7 @@ async function loadData() {
     const json = await res.json();
     if (json && json.length > 0) {
       ROW_ID = json[0].id;
-      state = Object.assign({shopping:[],todo:[],events:{},wishlist:[]}, json[0].data);
+      state = Object.assign({shopping:[],todo:[],events:{},wishlist:[],notes:[]}, json[0].data);
       renderAll(); updateBadges(); updateAlerts();
     }
     setStatus('synced');
@@ -754,11 +1010,12 @@ function formatTime(t) {
 
 // ── TABS ─────────────────────────────────────────────────
 function switchTab(n) {
-  ['shop','wish','todo','cal'].forEach(t => {
+  ['shop','wish','todo','cal','notes'].forEach(t => {
     document.getElementById('panel-'+t).classList.toggle('active', t===n);
     document.getElementById('tab-'+t).classList.toggle('active', t===n);
   });
   if (n==='cal') renderCalendar();
+  if (n==='notes') renderNotes();
 }
 
 function updateBadges() {
@@ -1200,7 +1457,7 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 
 // ── HELPERS ──────────────────────────────────────────────
 function renderAll() {
-  renderShopping(); renderTodo(); renderWishlist();
+  renderShopping(); renderTodo(); renderWishlist(); renderNotes();
   if(document.getElementById('panel-cal').classList.contains('active')) renderCalendar();
 }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
