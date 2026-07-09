@@ -364,10 +364,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
             <option value="events">🎉 Events</option>
           </select>
           <input class="field narrow" id="nt-who" placeholder="Who?">
-          <select class="field" id="nt-type">
-            <option value="freeform">📝 Freeform</option>
-            <option value="checklist">✅ Checklist</option>
-          </select>
+
         </div>
         <div class="pills" id="notes-cat-pills">
           <button class="pill on" data-c="all" onclick="filterNotes(this)">All</button>
@@ -480,10 +477,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     </select>
     <input class="modal-field" id="edit-nt-who" placeholder="Who? (optional)">
     <textarea class="modal-field" id="edit-nt-body" placeholder="Content… (for freeform notes)" rows="5" style="resize:vertical;font-family:inherit;font-size:15px"></textarea>
-    <div id="edit-nt-checklist-area">
-      <div id="edit-nt-items"></div>
-      <button class="ghost-btn" onclick="addChecklistItem()" style="margin-top:8px">+ Add item</button>
-    </div>
+
     <div class="modal-row">
       <button class="modal-btn secondary" onclick="closeModal('edit-note-modal')">Cancel</button>
       <button class="modal-btn primary" onclick="saveNoteEdit()">Save</button>
@@ -500,7 +494,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     <div id="view-nt-checklist" style="margin-bottom:16px"></div>
     <div class="modal-row">
       <button class="modal-btn secondary" onclick="closeModal('view-note-modal')">Close</button>
-      <button class="modal-btn primary" id="view-nt-reset-btn" onclick="resetChecklist()" style="display:none">↺ Reset ticks</button>
+
     </div>
   </div>
 </div>
@@ -598,7 +592,7 @@ function addNote() {
   if (!title) return;
   const cat = document.getElementById('nt-cat').value;
   const who = document.getElementById('nt-who').value.trim();
-  const type = document.getElementById('nt-type').value;
+  const type = 'freeform';
   const note = { id: Date.now(), title, cat, who, type, body: '', items: [], created: new Date().toISOString() };
   if (!state.notes) state.notes = [];
   state.notes.unshift(note);
@@ -647,27 +641,14 @@ function openViewNote(id) {
   const bodyEl = document.getElementById('view-nt-body');
   const listEl = document.getElementById('view-nt-checklist');
   const resetBtn = document.getElementById('view-nt-reset-btn');
-  if (n.type === 'checklist') {
-    bodyEl.style.display = 'none';
-    resetBtn.style.display = 'block';
-    listEl.innerHTML = (n.items||[]).map((item, idx) => `
-      <div class="checklist-item${item.done?' done':''}">
-        <input type="checkbox" id="chk-${idx}" ${item.done?'checked':''} onchange="toggleChecklistItem(${idx})">
-        <label for="chk-${idx}">${esc(item.text)}</label>
-      </div>`).join('');
+  listEl.innerHTML = '';
+  const lines = (n.body||'').split('\n').filter(l => l.trim());
+  if (lines.length > 1) {
+    bodyEl.innerHTML = lines.map(l =>
+      `<div class="freeform-line"><span class="freeform-bullet">•</span><span>${esc(l.trim())}</span></div>`
+    ).join('');
   } else {
-    bodyEl.style.display = 'block';
-    resetBtn.style.display = 'none';
-    listEl.innerHTML = '';
-    // Split body into lines and show each with a bullet
-    const lines = (n.body||'').split('\n').filter(l => l.trim());
-    if (lines.length > 1) {
-      bodyEl.innerHTML = lines.map(l =>
-        `<div class="freeform-line"><span class="freeform-bullet">•</span><span>${esc(l.trim())}</span></div>`
-      ).join('');
-    } else {
-      bodyEl.textContent = n.body || '';
-    }
+    bodyEl.textContent = n.body || '';
   }
   document.getElementById('view-note-modal').classList.add('visible');
 }
@@ -693,17 +674,7 @@ function openEditNote(id) {
   document.getElementById('edit-nt-title').value = n.title;
   document.getElementById('edit-nt-cat').value = n.cat || 'general';
   document.getElementById('edit-nt-who').value = n.who || '';
-  const bodyArea = document.getElementById('edit-nt-body');
-  const checklistArea = document.getElementById('edit-nt-checklist-area');
-  if (n.type === 'checklist') {
-    bodyArea.style.display = 'none';
-    checklistArea.style.display = 'block';
-    renderEditChecklist(n.items||[]);
-  } else {
-    bodyArea.style.display = 'block';
-    bodyArea.value = n.body || '';
-    checklistArea.style.display = 'none';
-  }
+  document.getElementById('edit-nt-body').value = n.body || '';
   document.getElementById('edit-note-modal').classList.add('visible');
 }
 
@@ -769,18 +740,7 @@ function saveNoteEdit() {
   n.title = document.getElementById('edit-nt-title').value.trim() || n.title;
   n.cat = document.getElementById('edit-nt-cat').value;
   n.who = document.getElementById('edit-nt-who').value.trim();
-  if (n.type === 'checklist') {
-    const el = document.getElementById('edit-nt-items');
-    const inputs = el.getElementsByTagName('input');
-    const existingDone = n.items ? n.items.map(i => i.done) : [];
-    n.items = [];
-    for (let i = 0; i < inputs.length; i++) {
-      const text = inputs[i].value.trim();
-      if (text) n.items.push({ text, done: existingDone[i] || false });
-    }
-  } else {
-    n.body = document.getElementById('edit-nt-body').value.trim();
-  }
+  n.body = document.getElementById('edit-nt-body').value.trim();
   closeModal('edit-note-modal');
   saveData(); renderNotes();
 }
